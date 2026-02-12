@@ -1,9 +1,4 @@
-	CMAKELISTS.TXT
--Change project name
--Check target_link_libraries (remove unneeded; add highscore/tgui...)
 
-	GITHUB
--set PROJNAME = GameName in repository variables
 -alter the README
 -add source files
 -delete this file
