@@ -1,0 +1,32 @@
+# First line is number of courses for vector.reserve()
+# Line beginning with @ indicates new course followed by its name
+# All intervening lines are text files (minus .txt) of hole platforms belonging to the course
+# Colon signals parser to store current course and prepare for next one
+
+
+3
+
+@Longshanks
+fick1
+fick2
+fick3
+fick4
+fick5
+:
+
+@Chizzlewhisk
+forjake
+wesleys
+:
+
+@Parfour
+fick11
+fick21
+fick31
+platforms2
+platforms3
+platforms33
+crotchtests
+halfpipe
+loops
+:

@@ -1,0 +1,13 @@
+@images
+
+
+#repeated
+#paneedge.png		edges		repeat
+
+@fonts
+Monaco.ttf		debug
+
+
+
+@sounds
+
