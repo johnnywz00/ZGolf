@@ -9,12 +9,52 @@
 #include "zgolf.hpp"
 #include "sfmlApp.hpp"
 
+bool State::handleTextEvent (Event& event)
+{
+	if (activeTbox
+		&& (event.type == Event::TextEntered
+			|| event.type == Event::KeyPressed
+			|| event.type == Event::KeyReleased)) {
+		if (event.type == Event::TextEntered) {
+			if (event.text.unicode == 8)
+				if (iKP(LShift))
+					activeTbox->clear();
+				else activeTbox->deleteLastChar();
+				else if (event.text.unicode == 9) ; // Don't write the \t
+				else activeTbox->appendText(event.text.unicode);
+		}
+		if (event.type == Event::KeyPressed && (event.key.code == Keyboard::Escape || event.key.code == Keyboard::Enter)) {
+			if (activeTbox == &fillInfoTbox) {
+				curPlat->fillTboxStr = fillInfoTbox.boxTxt.getString();
+			}
+			deactivateCurTbox();
+		}
+		return true;
+	}
+	return false;
+}
+
+void State::switchToDesign ()
+{
+	mode = design;
+	ballActive = false;
+	
+	ball.sP(-100, -100);
+	hole.sP(-100, -100);
+	
+	loadPlatformData(curPlatFile);
+	
+	curSurfType = "grass";
+	toolWin.toolButtons["grass"].isSelected = true;
+	activateSelectButton();
+}
+
 void State::loadToolbarButtons()
 {
 	float tbY = toolWin.teeButton.getPosition().y + toolWin.teeButton.getSize().y + toolWin.spacing;
 	forNum (surfaceTypeList.size()) {
 		auto key = surfaceTypeList[i].second;
-		ToolButton tb {txMap[key]};
+		ToolButton tb {gTexture(key)};
 		tb.sP(toolWin.totalRect.gP().x + 3,
 			  tbY);
 		tbY += tb.gLB().height + toolWin.spacing;
@@ -27,7 +67,7 @@ void State::loadToolbarButtons()
 	
 	forNum (fillTypeList.size()) {
 		auto key = fillTypeList[i].second;
-		ToolButton tb {txMap[key]};
+		ToolButton tb {gTexture(key)};
 		tb.setTextureRect(IntRect(0, 0, 64, 64));
 		tb.isFill = true;
 		tb.sP(toolWin.totalRect.gP().x + 3,
@@ -41,65 +81,94 @@ void State::loadToolbarButtons()
 	toolWin.move({30, 30}); // Initialize button positions
 }
 
-
-void State::designDraw ()
+void State::loadPlatformData (string fname)
 {
-	{ // /////////////  PLAYING WITH GRADIENT SPLINE
-//		VertexArray va {TriangleStrip};
-//		float halfWid = 8;
-//		Color c1 = DKORANGE50;
-//		Color c2 = ORANGE;
-//		
-//		for (auto& p : curPlatforms) {
-//			if (p.splVa.getVertexCount() < 2)
-//				continue;
-//			drt.clear(Color::Transparent);
-//			va.clear();
-//			for (int i = 0; i < p.splVa.getVertexCount() - 1; ++i) {
-//				auto pos1 = p.splVa[i].position;
-//				auto pos2 = p.splVa[i + 1].position;
-//				auto pdif = toPolar(pos2 - pos1);
-//				va.appendPtC(pos1 + pVec(halfWid, pdif.y + 90), c1);
-//				va.appendPtC(pos1 + pVec(halfWid, pdif.y + 270), c2);
-//				va.appendPtC(pos2 + pVec(halfWid, pdif.y + 90), c1);
-//				va.appendPtC(pos2 + pVec(halfWid, pdif.y + 270), c2);
-//				
-//			}
-//			drtDraw(va);
-//		}
-//		w->draw(rts);
-	}
+	curPlatforms.clear();
+	ifstream fs {"levels/" + fname + ".txt"};
+	string line;
+	EditorPlatform ep;
 	
-	for (auto& p : curPlatforms) {
-		for (auto& v : p.verts) {
-			w->draw(v.seg.spr);
-			if (&p == curPlat) {
-				w->draw(v.P1C1);
-				w->draw(v.C1C2);
-				w->draw(v.C2P2);
-				for (auto& c : v.controls) {
-					w->draw(c.s);
+	while (getline(fs, line)) {
+		if (line.empty()
+			|| line[0] == '#'
+			|| line == "SPRITE_CACHED")
+			continue;
+		if (line[0] == ':') {
+			//			PlatFillInfo pfi;
+			stringstream ss {line};
+			string tok;
+			ss >> tok; // Pass over colon
+			if (ss >> tok) {
+				if (tok == "colordev") {
+					ep.fillTboxStr = line.substr(line.find('v') + 2);
+					/*
+					 pfi.type = PlatFillInfo::FillType::colorDev;
+					 uint red, green, blue, alpha;
+					 int dev, reps;
+					 ss >> red >> green >> blue >> alpha >> dev >> reps;
+					 PlatFillInfo::ColorDevInfo cdi {
+					 Color(red, green, blue, alpha), dev, reps
+					 };
+					 pfi.arg = cdi;
+					 */
+				}
+				else if (tok == "imagepixs") {
+					ep.fillTboxStr = line.substr(line.find('s') + 2);
+					/*
+					 pfi.type = PlatFillInfo::FillType::imagePixs;
+					 ss >> tok;
+					 pfi.arg = tok;
+					 */
 				}
 			}
-			w->draw(v.s);
-			if (v.isHighlighted)
-				w->draw(v.hl);
+			//			ep.fillInfo = pfi;
+			
+			
+			ep.isComplete = true;
+			curPlatforms.push_back(ep);
+			for (auto& v : curPlatforms.back().verts) {
+				v.parentPlat = &curPlatforms.back();
+			}
+			finishGround(&curPlatforms.back(), false);
+			
+			ep = EditorPlatform();
+			continue;
 		}
-		w->draw(p.splVa);
+		stringstream ss {line};
+		string tok, skip;
+		Vert v;
+		vecf pos;
+		auto peek = ss.peek();
+		if (peek == 'T' || peek == 'H') {
+			ss >> tok;
+			if (tok == 'T')
+				v.hasTee = true;
+			else if (tok == 'H')
+				v.hasHole = true;
+		}
+		//		ss >> pos.x >> pos.y >> skip >> skip;
+		ss >> skip >> skip >> pos.x >> pos.y;
+		v.setPosition(pos);
+		if (ss >> tok) {
+			v.surfaceType = tok;
+			v.txPtr= &(gTexture(tok));
+		}
+		else {
+			//potentially read scheme for upfacing/downfacing segs
+			/* Defaults */
+			v.txPtr = &(gTexture("grass"));
+			// This shouldn't work unless v.surfaceType is dynamic based on
+			// updateSegs -> facesUp?
+			v.txPtrUps = &(gTexture("dirt"));
+		}
+		ep.verts.push_back(v);
 	}
-	w->draw(hole);
-	w->draw(ball);
 	
-	w->draw(filenameTbox);
-	w->draw(fillInfoTbox);
-	w->draw(toolWin);
+	fs.close();
+	filenameTbox.setText(fname);
 	
-//	w->draw(mouseTxt);
-	w->draw(statsTxt);
-	
-	w->draw(rts); // ///
+	newPlatform();
 }
-
 
 void State::designKeyPress (Keyboard::Key k)
 {
@@ -130,7 +199,7 @@ void State::designKeyPress (Keyboard::Key k)
 			break;
 			
 		case Keyboard::Comma:
-
+			
 			break;
 			
 		default:
@@ -177,7 +246,7 @@ void State::designClick (int x, int y)
 		if (toolWin.totalRect.gGB().contains(x, y)) {
 			toolWin.clickDragging = true;
 		}
-//		else if (curTool == "someTool") { }
+		//		else if (curTool == "someTool") { }
 		else {
 			
 			if (filenameTbox.tbox.gGB().contains(x, y)) {
@@ -196,7 +265,7 @@ void State::designClick (int x, int y)
 				deactivateCurTbox();
 				return;
 			}
-
+			
 			for (auto& p : curPlatforms) {
 				auto sz = p.verts.size();
 				for (int i = 0; i < sz; ++i) {
@@ -229,7 +298,7 @@ void State::designClick (int x, int y)
 							auto func = [&](Vert& cur) {
 								cur.surfaceType = curSurfType;
 								cur.seg.surfaceType = curSurfType;
-								cur.txPtr = &(txMap[curSurfType]);
+								cur.txPtr = &(gTexture(curSurfType));
 							};
 							if (isCmdPressed())
 								for (auto& v : p.verts)
@@ -293,7 +362,7 @@ void State::designClick (int x, int y)
 				v.seg = EditorGroundSeg(curPlat->verts.back().s.gP(), vecf(x, y));
 			v.seg.surfaceType = curSurfType;
 			v.surfaceType = curSurfType; //which one to use ^^
-			v.txPtr = &(txMap[curSurfType]);
+			v.txPtr = &(gTexture(curSurfType));
 			// if scheme, v.txPtrUps = scheme.ups
 			
 			if (gHighlighted) {
@@ -315,10 +384,10 @@ void State::designClick (int x, int y)
 	
 }
 
-
 void State::designUpdate ()
 {
-	auto mouseDif = vecf(mx, my) - vecf(mxOld, myOld);
+	auto floatMouse = toVecF(mouseVec);
+	auto mouseDif = floatMouse - toVecF(oldMouse);
 	if (toolWin.clickDragging) {
 		toolWin.move(mouseDif);
 	}
@@ -327,7 +396,7 @@ void State::designUpdate ()
 		auto plat = gClicked->parentPlat;
 		if (isCmdPressed()) {
 			vecf oldPos = gClicked->s.gP();
-			vecf dif = vecf(mx, my) - oldPos;
+			vecf dif = floatMouse - oldPos;
 			for (auto& v : plat->verts) {
 				v.s.move(dif);
 				v.hl.move(dif);
@@ -335,7 +404,7 @@ void State::designUpdate ()
 					c.s.move(dif);
 			}
 		}
-		gClicked->setPosition({(float)mx, (float)my});
+		gClicked->setPosition(floatMouse);
 		
 		plat->recomputeSpline();
 	}
@@ -349,131 +418,63 @@ void State::designUpdate ()
 	statsTxt.setString(str + curStr);
 }
 
-
-void State::setCurPlat (EditorPlatform* ep)
+void State::designDraw ()
 {
-	curPlat = ep;
-	fillInfoTbox.boxTxt.setString(ep->fillTboxStr);
-}
-
-
-void State::deactivateCurTbox ()
-{
-	if (activeTbox) {
-		activeTbox->setActive(false);
-		activeTbox = nullptr;
+	auto w = rwin;
+	{ // /////////////  PLAYING WITH GRADIENT SPLINE
+//		VertexArray va {TriangleStrip};
+//		float halfWid = 8;
+//		Color c1 = DKORANGE50;
+//		Color c2 = ORANGE;
+//		
+//		for (auto& p : curPlatforms) {
+//			if (p.splVa.getVertexCount() < 2)
+//				continue;
+//			drt.clear(Color::Transparent);
+//			va.clear();
+//			for (int i = 0; i < p.splVa.getVertexCount() - 1; ++i) {
+//				auto pos1 = p.splVa[i].position;
+//				auto pos2 = p.splVa[i + 1].position;
+//				auto pdif = toPolar(pos2 - pos1);
+//				va.appendPtC(pos1 + pVec(halfWid, pdif.y + 90), c1);
+//				va.appendPtC(pos1 + pVec(halfWid, pdif.y + 270), c2);
+//				va.appendPtC(pos2 + pVec(halfWid, pdif.y + 90), c1);
+//				va.appendPtC(pos2 + pVec(halfWid, pdif.y + 270), c2);
+//				
+//			}
+//			drtDraw(va);
+//		}
+//		w->draw(rts);
 	}
-}
-
-bool State::maybeEraseSelectedVert ()
-{
-	if (gHighlighted) {
-		auto plat = gHighlighted->parentPlat;
-		if (isCmdPressed())
-			plat->verts.clear();
-		else plat->verts.erase(plat->verts.begin() + indexOfRef(plat->verts, *gHighlighted));
-		plat->recomputeSpline();
-		if (gHighlighted == gClicked)
-			gClicked = nullptr;
-		gHighlighted = nullptr;
-		return true;
-	}
-	return false;
-}
-
-void State::activateSelectButton ()
-{
-	curTool = "select";
-	toolWin.highlight.sP(rectCenter(toolWin.selectButton));
-}
-
-void State::loadPlatformData (string fname)
-{
-	curPlatforms.clear();
-	ifstream fs {"levels/" + fname + ".txt"};
-	string line;
-	EditorPlatform ep;
 	
-	while (getline(fs, line)) {
-		if (line.empty()
-			|| line[0] == '#'
-			|| line == "SPRITE_CACHED")
-			continue;
-		if (line[0] == ':') {
-//			PlatFillInfo pfi;
-			stringstream ss {line};
-			string tok;
-			ss >> tok; // Pass over colon
-			if (ss >> tok) {
-				if (tok == "colordev") {
-					ep.fillTboxStr = line.substr(line.find('v') + 2);
-					/*
-					pfi.type = PlatFillInfo::FillType::colorDev;
-					uint red, green, blue, alpha;
-					int dev, reps;
-					ss >> red >> green >> blue >> alpha >> dev >> reps;
-					PlatFillInfo::ColorDevInfo cdi {
-						Color(red, green, blue, alpha), dev, reps
-					};
-					pfi.arg = cdi;
-					 */
-				}
-				else if (tok == "imagepixs") {
-					ep.fillTboxStr = line.substr(line.find('s') + 2);
-					/*
-					pfi.type = PlatFillInfo::FillType::imagePixs;
-					ss >> tok;
-					pfi.arg = tok;
-					 */
+	for (auto& p : curPlatforms) {
+		for (auto& v : p.verts) {
+			w->draw(v.seg.spr);
+			if (&p == curPlat) {
+				w->draw(v.P1C1);
+				w->draw(v.C1C2);
+				w->draw(v.C2P2);
+				for (auto& c : v.controls) {
+					w->draw(c.s);
 				}
 			}
-//			ep.fillInfo = pfi;
-			
-			
-			ep.isComplete = true;
-			curPlatforms.push_back(ep);
-			for (auto& v : curPlatforms.back().verts) {
-				v.parentPlat = &curPlatforms.back();
-			}
-			finishGround(&curPlatforms.back(), false);
-			
-			ep = EditorPlatform();
-			continue;
+			w->draw(v.s);
+			if (v.isHighlighted)
+				w->draw(v.hl);
 		}
-		stringstream ss {line};
-		string tok, skip;
-		Vert v;
-		vecf pos;
-		auto peek = ss.peek();
-		if (peek == 'T' || peek == 'H') {
-			ss >> tok;
-			if (tok == 'T')
-				v.hasTee = true;
-			else if (tok == 'H')
-				v.hasHole = true;
-		}
-//		ss >> pos.x >> pos.y >> skip >> skip;
-		ss >> skip >> skip >> pos.x >> pos.y;
-		v.setPosition(pos);
-		if (ss >> tok) {
-			v.surfaceType = tok;
-			v.txPtr= &(txMap[tok]);
-		}
-		else {
-			//potentially read scheme for upfacing/downfacing segs
-			/* Defaults */
-			v.txPtr = &(txMap["grass"]);
-			// This shouldn't work unless v.surfaceType is dynamic based on
-			// updateSegs -> facesUp?
-			v.txPtrUps = &(txMap["dirt"]);
-		}
-		ep.verts.push_back(v);
+		w->draw(p.splVa);
 	}
+	w->draw(hole);
+	w->draw(ball);
 	
-	fs.close();
-	filenameTbox.setText(fname);
+	w->draw(filenameTbox);
+	w->draw(fillInfoTbox);
+	w->draw(toolWin);
 	
-	newPlatform();
+//	w->draw(mouseTxt);
+	w->draw(statsTxt);
+	
+	w->draw(rts); // ///
 }
 
 bool State::finishGround (EditorPlatform* plat, bool makeNew)
@@ -504,11 +505,11 @@ bool State::finishGround (EditorPlatform* plat, bool makeNew)
 		}
 		/* Quadratic curve */
 		else if (v.controls.size() == 1) {
-				// store the control point position
+			// store the control point position
 			vecf c1 = v.controls[0].s.gP();
-				// vector from pt1 to control
+			// vector from pt1 to control
 			vecf p1c1 = c1 - pos1;
-				// vector from control to pt2
+			// vector from control to pt2
 			vecf c2p2 = pos2 - c1;
 			vecf inc1 = p1c1 * .01f;
 			vecf inc3 = c2p2 * .01f;
@@ -642,6 +643,71 @@ bool State::finishGround (EditorPlatform* plat, bool makeNew)
 	return true;
 }
 
+void State::clearMap ()
+{
+	std::fstream fs{"levels/platforms.txt", std::ios_base::out|std::ios_base::trunc};
+	fs.close();
+	curPlatforms.clear();
+	gClicked = nullptr;
+	gHighlighted = nullptr;
+	newPlatform();
+}
+
+bool State::maybeEraseSelectedVert ()
+{
+	if (gHighlighted) {
+		auto plat = gHighlighted->parentPlat;
+		if (isCmdPressed())
+			plat->verts.clear();
+		else plat->verts.erase(plat->verts.begin() + indexOfRef(plat->verts, *gHighlighted));
+		plat->recomputeSpline();
+		if (gHighlighted == gClicked)
+			gClicked = nullptr;
+		gHighlighted = nullptr;
+		return true;
+	}
+	return false;
+}
+
+void State::activateSelectButton ()
+{
+	curTool = "select";
+	toolWin.highlight.sP(rectCenter(toolWin.selectButton));
+}
+
+void State::updateHoleAndTee (pair<Vert*, Vert*> ht)
+{
+	if (ht.first) {
+		hole.sP(ht.first->seg.mid);
+		hole.setRotation(ht.first->seg.oppAngle);
+		flag.sP(hole.gP());
+		//	flagTxt.sP(hole.gP() + vecf(0, -51));
+	}
+	if (ht.second) {
+		ball.sP(ht.second->seg.mid + pVec(ball.gLB().height / 2 + 1, ht.second->seg.normal));
+	}
+}
+
+void State::newPlatform ()
+{
+	curPlatforms.emplace_back();
+	setCurPlat(&curPlatforms.back());
+}
+
+void State::deactivateCurTbox ()
+{
+	if (activeTbox) {
+		activeTbox->setActive(false);
+		activeTbox = nullptr;
+	}
+}
+
+void State::setCurPlat (EditorPlatform* ep)
+{
+	curPlat = ep;
+	fillInfoTbox.boxTxt.setString(ep->fillTboxStr);
+}
+
 void State::saveHole ()
 {
 	string fname = "levels/" + filenameTbox.boxTxt.getString() + ".txt";
@@ -685,207 +751,4 @@ void State::saveHole ()
 		fs << endl;
 	}
 	fs.close();
-}
-
-void State::clearMap () {
-	
-	std::fstream fs{"levels/platforms.txt", std::ios_base::out|std::ios_base::trunc};
-	fs.close();
-	curPlatforms.clear();
-	gClicked = nullptr;
-	gHighlighted = nullptr;
-	newPlatform();
-}
-
-void State::newPlatform ()
-{
-	curPlatforms.emplace_back();
-	setCurPlat(&curPlatforms.back());
-}
-
-pair<Vert*, Vert*> EditorPlatform::recomputeSpline ()
-{
-	splVa.clear();
-	auto sz = verts.size();
-		// no spline to draw if only one or zero points created
-	if (sz < 2)
-		return {nullptr, nullptr};
-	
-	for (int i = 1; i <= sz; ++i) {
-		Vert& v = verts[i - 1];
-		v.P1C1.clear();
-		v.C1C2.clear();
-		v.C2P2.clear();
-		auto pos1 = v.s.gP();
-			// [i % sz] so that final vert will connect to first vert
-		auto pos2 = verts[i % sz].s.gP();
-		if (i == 1)
-			splVa.append(Vertex(pos1, Color::Black));
-		
-			// only draw spline from final vert to initial vert if a control point has been added on the final one, to signify completing the circuit
-		if (v.controls.size() == 0) {
-			if (isComplete || i != sz)
-				splVa.append(Vertex(pos2, Color::Black));
-			continue;
-		}
-		else if (v.controls.size() == 1) {   // one control point: quadratic curve
-			vecf c1 = v.controls[0].s.gP();
-			vecf p1c1 = c1 - pos1;
-			vecf c2p2 = pos2 - c1;
-			vecf inc1 = p1c1 * .01f;
-			vecf inc3 = c2p2 * .01f;
-			for (float j = 1; j <= 100; ++j) {
-				if (j == 100) {
-					splVa.append(Vertex(pos2, Color::Black));
-					break;
-				}
-				vecf pt1 = pos1 + inc1 * j;
-				vecf pt3 = c1 + inc3 * j;
-				vecf dif1 = pt3 - pt1;
-				vecf incd1 = dif1 * .01f;
-				vecf pt6 = pt1 + vecf(incd1.x * j, incd1.y * j);
-				
-				splVa.append(Vertex(pt6, Color::Black));
-			}
-		}
-		else if (v.controls.size() == 2) { // two control points: cubic curve
-			vecf c1 = v.controls[0].s.gP();
-			vecf c2 = v.controls[1].s.gP();
-			vecf p1c1 = c1 - pos1;
-			vecf c1c2 = c2 - c1;
-			vecf c2p2 = pos2 - c2;
-			vecf inc1 = p1c1 * .01f;
-			vecf inc2 = c1c2 * .01f;
-			vecf inc3 = c2p2 * .01f;
-			for (float j = 1; j <= 100; ++j) {
-				if (j == 100) {
-					splVa.append(Vertex(pos2, Color::Black));
-					break;
-				}
-				vecf pt1 = pos1 + inc1 * j;
-				vecf pt2 = c1 + inc2 * j;
-				vecf pt3 = c2 + inc3 * j;
-				vecf dif1 = pt2 - pt1;
-				vecf dif2 = pt3 - pt2;
-				vecf incd1 = dif1 * .01f;
-				vecf incd2 = dif2 * .01f;
-				vecf pt4 = pt1 + incd1 * j;
-				vecf pt5 = pt2 + incd2 * j;
-				vecf dif3 = pt5 - pt4;
-				vecf pt6 = pt4 + vecf(dif3.x * j * .01, dif3.y * j * .01);
-				
-				splVa.append(Vertex(pt6, Color::Black));
-			}
-		}
-			// draw guidelines
-		Color c = Color(230, 230, 230, 200);
-		vecf c1 = v.controls[0].s.gP();
-		vecf c2;
-		if (v.controls.size() == 2)
-			c2 = v.controls[1].s.gP();
-		else c2 = c1;
-		Color col = Color(200, 200, 255);
-		v.C1C2.append(VXC(c1.x, c1.y, col));
-		v.C1C2.append(VXC(c2.x, c2.y, col));
-		auto dif1 = c1 - pos1;
-		float m1;
-		if (dif1.x == 0) {
-			v.P1C1.append(VXC(c1.x, 0, c));
-			v.P1C1.append(VXC(c1.x, SCRH, c));
-		}
-		else {
-			m1 = dif1.y / dif1.x;
-			v.P1C1.append(VXC(0, c1.y - m1 * c1.x, c));
-			v.P1C1.append(VXC(SCRW, m1 * SCRW + (c1.y - m1 * c1.x), c));
-		}
-		dif1 = pos2 - c2;
-		if (dif1.x == 0) {
-			v.C2P2.append(VXC(c2.x, 0, c));
-			v.C2P2.append(VXC(c2.x, SCRH, c));
-		}
-		else {
-			m1 = dif1.y / dif1.x;
-			v.C2P2.append(VXC(0, c2.y - m1 * c2.x, c));
-			v.C2P2.append(VXC(SCRW, m1 * SCRW + (c2.y - m1 * c2.x), c));
-		}
-	}
-	return updateSegs();
-}
-
-pair<Vert*, Vert*> EditorPlatform::updateSegs ()
-{
-	pair<Vert*, Vert*> holeAndTee {nullptr, nullptr};
-	int sz = (int)verts.size();
-	forNum(sz) {
-		Vert& vert = verts[i];
-		/* Don't connect the verts cyclically until "finishGround" has been
-		 * called on this platform, since during initial platform spline creation
-		 * the ground segment connecting last to first would just be a nuisance.
-		 */
-		int idx = !isComplete ? max(0, i - 1) : (i + sz - 1) % sz;
-		auto start = verts[idx].s.gP();
-		auto end = vert.s.gP();
-		EditorGroundSeg g {start, end};
-		Texture* txPtr;
-		if (!g.facesUp && vert.txPtrUps != nullptr) {
-			// If doing up/downfacing schemes, the downfacing surfaceType
-			// will need to be stored and read from
-			g.surfaceType = "dirt";
-			txPtr = vert.txPtrUps;
-		}
-		else {
-			g.surfaceType = vert.surfaceType;
-			txPtr = vert.txPtr;
-		}
-		g.initSprite(*txPtr);
-		if (vert.hasHole) {
-			g.hasHole = true;
-			holeAndTee.first = &vert;
-		}
-		if (vert.hasTee) {
-			g.hasTee = true;
-			holeAndTee.second = &vert;
-		}
-		vert.seg = g;
-	}
-	return holeAndTee;
-}
-
-
-void State::updateHoleAndTee (pair<Vert*, Vert*> ht)
-{
-	if (ht.first) {
-		hole.sP(ht.first->seg.mid);
-		hole.setRotation(ht.first->seg.oppAngle);
-		flag.sP(hole.gP());
-		//	flagTxt.sP(hole.gP() + vecf(0, -51));
-	}
-	if (ht.second) {
-		ball.sP(ht.second->seg.mid + pVec(ball.gLB().height / 2 + 1, ht.second->seg.normal));
-	}
-}
-
-bool State::handleTextEvent (Event& event)
-{
-	if (activeTbox
-			&& (event.type == Event::TextEntered
-				|| event.type == Event::KeyPressed
-				|| event.type == Event::KeyReleased)) {
-		if (event.type == Event::TextEntered) {
-			if (event.text.unicode == 8)
-				if (iKP(LShift))
-					activeTbox->clear();
-				else activeTbox->deleteLastChar();
-			else if (event.text.unicode == 9) ; // Don't write the \t
-			else activeTbox->appendText(event.text.unicode);
-		}
-		if (event.type == Event::KeyPressed && (event.key.code == Keyboard::Escape || event.key.code == Keyboard::Enter)) {
-			if (activeTbox == &fillInfoTbox) {
-				curPlat->fillTboxStr = fillInfoTbox.boxTxt.getString();
-			}
-			deactivateCurTbox();
-		}
-		return true;
-	}
-	return false;
 }

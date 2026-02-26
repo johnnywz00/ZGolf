@@ -1,23 +1,19 @@
-#ifndef ZGOLF_HPP
-#define ZGOLF_HPP
-
-#include "objects.hpp"
-
 
 /*
   
  FRICTION CREEP: add an angle threshold to each surface type where the ball won't move if it zeroed out velocity on shallow enough slant  (or,  fixing centrifugal may fix this, pretty certain FrictionSandbox had no creep)
  -Disregard all centrifugl calculations unless xlatdir exceeds speed threshold?
+ -replace centrif w note of upsidedownness, angle + speed?
  
 		TO DO:
  =============
- -multiple threads for blur(), fillIn
+ -multiple threads for blur(), fillIn (but heard that pixel work isn't good to divide between threads?)
  -do screen edges properly
  
  -when friction creeping ball (and now deh bc staying aligned with it) sometimes disappear (when tab dropping the ball again, ball is traveling at high rate and the sprite is solid black colored)
  ** ball still freezes in crotch if crotch is made by two different platforms: design platforms without overlap for now
  -centrifugal and friction creep aren't right; not fixed by roll() 1404. (ball could perch on marble of ≈3 degrees; creep doesn't seem to respect muS value  unless it's because gravity factor isn't proportionate)
- -fine tune surface physics after fixing centrifugal, friction creep
+ -fine tune surface physics after fixing centrifugal & friction creep
  REFACTOR ALL LINE CODE TO USE X FOR NEAR VERTICAL
  !- another NAN/INF ball position when putting on a gentle convex/concave curve
  !- another roll() stack overflow in acute crotch
@@ -71,37 +67,77 @@
  ==============
 */
 
-class SFGameWindow;
-class TimedEventManager;
+#ifndef ZGOLF_HPP
+#define ZGOLF_HPP
 
-class State {
+#include "vsprite.hpp"
+#include "resourcemanager.hpp"
+#include "timedeventmanager.hpp"
+#include <variant>
+
+class State;
+
+/* These are all consts in practice, but leaving them untagged
+ * while still sometimes adjusting the values with in-game
+ * key press
+ */
+inline float 			muK = .04;	// kinetic friction
+inline float 			muS = .05;	// static friction
+inline float			bounceLoss = .35;
+inline float       		bounceClamp = 1.3;
+inline float			maxAngForRoll = 36;
+inline float			maxAngForRollCvx = 25;
+inline float			minAngForIronShot = 5;
+inline float			ironMinDevFromVertical = 7;
+inline float			convexRollClamp = 1.4;
+inline float			centrifugalDecmFactor = 1;
+/* If using this factor: too high a value (even .3) causes ball to "dig" in
+ * to the ground too aggressively, stopping the ball from climbing upward
+ * curvature. Too low, and the ball falls too easily off loops, resulting
+ * in unrealistic looking bounces off the angle of the next seg
+ */
+inline float 			centrifugalIncmFactor = .24;
+
+inline int         			nextSegID = 1;
+inline constexpr float      powerRate = 1.5;
+inline constexpr float      dfltMaxPower = 20;
+inline constexpr float      maxPuttPower = 20;
+inline constexpr float      maxPct = 100;
+
+
+// DEBUG: was printing angle numbers for ground segments
+inline float stagger ()
+{
+	static float cur = 20;
+	float ret = cur;
+	cur += 20;
+	if (cur > 100)
+		cur = 20;
+	return ret;
+}
+
+//#define DBG	// activates some code blocks
+
+
+#include "GroundSegment.hpp"
+#include "Vert.hpp"
+#include "platforms.hpp"
+#include "objects.hpp"
+#include "ToolWindow.hpp"
+
+
+class FullscreenOnlyApp;
+
+class State
+{
 public:
-	
 	enum Mode { design, play, menu };
  
 	static State* getSelf () { return instance_; }
 	
 	void onCreate () ;
 	
-	void loadFonts () ;
-	
-	void loadTextures () ;
-	
-	void addTexToMap (pair<string, string>) ;
-	
-	void loadSounds () ;
-	
-	void resetGame () ;
-	
-	void draw () ;
-	
-	void loadCourses () ;
-	
-	void loadCourse (Course&) ;
-	
-	void loadNextHole () ;
-	
-	void loadPlatforms (string fname = "platforms") ;
+	bool handleTextEvent(Event&) ; // in designMethods.cpp
 	
 	void onMouseDown (int x, int y) ;
 	
@@ -111,27 +147,70 @@ public:
 	
 	void onKeyRelease (Keyboard::Key) ;
 	
-	void switchToPlay () ;
-	
-	void switchToDesign () ;
-	
 	void update (const Time& time) ;
 	
-	void playUpdate (const Time& time) ;
+	void draw () ;
 	
-	void fly (float) ;
+	RenderWindow*   	rwin;
+	FullscreenOnlyApp*	app;
+	TimedEventManager*	timedMgr;
+	vecI				mouseVec
+						, oldMouse
+	;
 	
-	void roll (float, GroundSegment* = nullptr) ;
+	bool pauseAfterDraw = false;	// DEBUG
 	
-	void launch () ;
+private:
 	
-	void handleSwing () ;
+	const float			gravity = .25
+						, angleRate = .5
+						, avgSeg = 25
+						, minseg = 15
+						, speedClamp = .1
+						, fracRemEps = .01
+						, snapToEndEps = .08
+	;
+	const vecF			vGravity {0, gravity};
+
+	void loadAnimFrames (); //@kludgeAnim
 	
-	void ballInHole () ;
+	void resetGame ();
 	
-	void updateGuide () ;
+	void loadCourses ();
 	
-	void updatePowerBar (float) ;
+	void loadCourse (Course&);
+	
+	void loadNextHole ();
+	
+	void loadPlatforms (string fname = "platforms");
+
+	void menuDraw();
+	
+	void menuClick(int x, int y);
+
+	
+/* Play mode methods */
+	void switchToPlay ();
+	
+	void assembleSprite (string);
+	
+	void playUpdate (const Time& time);
+	
+	void updateGuide ();
+	
+	void handleSwing ();
+
+	void updatePowerBar (float);
+	
+	void startDownswing (); //@kludgeAnim
+	
+	void setDehFrame (int); //@kludgeAnim
+	
+	void launch ();
+	
+	void fly (float);
+	
+	void roll (float, GroundSegment* = nullptr);
 	
 	void startRoll (GroundSegment* seg)
 	{
@@ -139,194 +218,138 @@ public:
 		gSeg = seg;
 	}
 	
-	void endRoll () ;
+	void endRoll ();
 	
-	void zeroOutVelocity () ;
+	void zeroOutVelocity ();
 	
-	void disableShooting () ;
+	void disableShooting ();
 	
-	void startNewShotTimer () ;
+	void startNewShotTimer ();
  
-	void assembleSprite (string) ;
+	void ballInHole ();
 	
 	
+/* Design mode methods (defs in designMethods.cpp) */
+	void switchToDesign ();
 	
-	void loadToolbarButtons () ;
+	void loadToolbarButtons ();
 	
-	void loadPlatformData (string fname = "platforms") ;
+	void loadPlatformData (string fname = "platforms");
 
-	void designKeyPress (Keyboard::Key) ;
+	void designKeyPress (Keyboard::Key);
 
-	void designClick (int, int) ;
+	void designClick (int, int);
 
-	void designUpdate () ;
+	void designUpdate ();
 
-	void designDraw () ;
+	void designDraw ();
 
-	bool finishGround (EditorPlatform*, bool makeNew = true) ;
+	bool finishGround (EditorPlatform*, bool makeNew = true);
 
-	void clearMap () ;
+	void clearMap ();
 
-	void redrawSpline () ;
-
-	bool maybeEraseSelectedVert () ;
+	bool maybeEraseSelectedVert ();
 	
-	void activateSelectButton () ;
+	void activateSelectButton ();
 
-	bool handleTextEvent(Event&) ;
+	void updateHoleAndTee (pair<Vert*, Vert*>);
+	
+	void newPlatform ();
+	
+	void deactivateCurTbox ();
+	
+	void setCurPlat (EditorPlatform*);
 
-	void saveHole () ;
+	void saveHole ();
 	
-	void updateHoleAndTee (pair<Vert*, Vert*>) ;
 	
-	void newPlatform () ;
-	
-	void deactivateCurTbox () ;
-	
-	void setCurPlat (EditorPlatform*) ;
+	static State*			instance_;
+	Mode        			mode = menu;
 
+	static vector<pair<string, string>> 	surfaceTypeList;
+	static vector<pair<string, string>> 	surfaceEndList;
+	static vector<pair<string, string>> 	fillTypeList;
+	static map<string, SurfacePhysics>		physicsMap;
 	
-	void menuDraw() ;
-	
-	void menuClick(int x, int y) ;
-	
+	vector<Course>			courses;
+	vector<Platform>        platforms;
+	string					curPlatFile;
 
-	static vector<pair<string, string>> surfaceTypeList;
-	static vector<pair<string, string>> surfaceEndList;
-	static vector<pair<string, string>> fillTypeList;
-	static map<string, SurfacePhysics>	physicsMap;
-	Mode        mode = menu;
-
-	/* Design mode members */
-	Textbox					filenameTbox;
-	Textbox					fillInfoTbox;
-	Textbox*				activeTbox = nullptr;
-	Vert*                   gHighlighted = nullptr;
-	Vert*                   gClicked = nullptr;
-	vector<EditorPlatform>  curPlatforms;
-	EditorPlatform*			curPlat = nullptr;
-	string					curSurfType = "grass";
-	ToolWindow				toolWin {vecf(100, 800)};
-	string					curTool;
-	
+/* Menu members */
 	Sprite					bkgdSpr;
 	vector<CourseButton>	courseButtons;
 	Text					menuTitle;
 
-	Text					flagTxt
-							, statsTxt
-	;
- 
-	vector<Course>			courses;
-    vector<Platform>        platforms;
-	Course*					curCourse;
-	CourseHole*				curHole;
-    VertexArray             guideline {Lines}
+/* Play mode members */
+	Sprite                  deh;
+	VSprite             	ball;
+	Hole					hole;
+	Sprite					flag;
+	Sprite                  clouds[10];
+	Sprite					curHoleSprite;
+	Sprite					trajecSpr;
+	VertexArray             guideline {Lines}
 							, powerBarOutline {LineStrip}
 							, powerBar {TriangleStrip}
 	;
-	
-	GroundSegment*          gSeg = nullptr;
-	VSprite             	ball;
-	Sprite                  deh;
-	Sprite					flag;
-	Sprite					curHoleSprite;
-	Hole					hole;
-
-    float       power = 0
-                , angle = 315
-                , angleRate = .5
-                , gravity = .25
-				, avgSeg = 25
-                , minseg = 15
-				, speedClamp = .1
-				, fracRemEps = .01
-				, snapToEndEps = .08
-				, ballRadius
-    ;
-    vecF        vGravity {0, gravity}
+	Text					flagTxt
+							, statsTxt
 	;
-    bool        pullingBack
-                , ballActive
-				, putting
-                , rolling
-				, inCrotch
-				, onCusp
-				, powerRising
-				, teeingOff
-    ;
+	Texture                 trajecTx;
+	ZImage					trajecImg;
+	
+	Course*					curCourse;
+	CourseHole*				curHole;
+	GroundSegment*          gSeg = nullptr;
 	CrotchInfo				crotchInfo;
-    
-    Sprite                  clouds[10];
-    float                   cloudVels[10];
-    
-    RenderTexture           rt;
-    Sprite                  rts;
-    Texture                 rtTx;
-	ZImage					rtImg;
-	
-
-	
 	vector<AnimFrame>		swingFrames; //@kludgeAnim
+
+	float                   cloudVels[10];
+	float       			power = 0
+                			, angle = 315
+							, ballRadius
+    ;
 	int						curFrameNum; //@kludgeAnim
-	void setDehFrame (int) ; //@kludgeAnim
-	void loadAnimFrames () ; //@kludgeAnim
-	void startDownswing () ;
-	
-	
-	static State*			instance_;
-	RenderWindow*   w;
-	SFGameWindow*	gw;
-	TimedEventManager*	timedMgr;
-	int             mx = 0,
-					my = 0,
-					mxOld = 0,
-					myOld = 0;
-	Text            mouseTxt;
-  
-	map<string, Font> 			fontMap;
-	static const vector<pair<string, string>>
-								fontList;
+    bool					ballActive
+							, pullingBack
+							, putting
+                			, rolling
+							, inCrotch
+							, onCusp
+							, powerRising
+							, teeingOff
+    ;
+    
+/* Design mode members */
+	ToolWindow				toolWin {vecf(100, 800)};
+	Textbox					filenameTbox;
+	Textbox					fillInfoTbox;
+	vector<EditorPlatform>  curPlatforms;
+	Textbox*				activeTbox = nullptr;
+	Vert*                   gHighlighted = nullptr;
+	Vert*                   gClicked = nullptr;
+	EditorPlatform*			curPlat = nullptr;
+	string					curSurfType = "grass";
+	string					curTool;
 
-	map<string, Texture> 		txMap;
-	static vector<pair<string, string>>
-								txList;
-
-	vector<SoundBuffer> 		buffers;
-	map<string, Sound> 			soundMap;
-	static const vector<pair<string, string>>
-								soundList;
 
 	
 	
-	//DEBUG ///////////////////////////////////////////////
-	string					curPlatFile;
-
-	string dbgMsg;
-	uint frameCounter = 0;
-	uint storedFrame = 0;
-	bool pauseAfterDraw = false;
-	bool enterBreakpoints = false;
-	class RR : public RectangleShape
-	{ public: RR(){ setSize({150,150});setPosition(0,400);} };
-	RR rr{};
+/*//////   DEBUG / TEMP   ////////*/
 	
-	class RRR : public RectangleShape
-	{ public: RRR(){ setSize({150,150});setPosition(0,600);} };
-	RRR rrr{};
-	LineSegment lastPath;
-	RenderTexture drt;
-	bool firstCollision = false;
-//	GroundSegment gs {{800,500}, {850,500}};
-	VertexArray gsva {Lines};
+	/* Sky color indicates which control blocks are being entered
+	 * in fly() and roll()
+	 */
+	void dbgSky(Color c);
 	
 	void drtDraw(const Drawable& d)
 	{
 		drt.draw(d);
 		drt.display();
-//		rts.setTexture(drt.getTexture());
+		//		rts.setTexture(drt.getTexture());
 	}
 	
+	/* Draw directional lines from an origin */
 	void drtDraw(const vecf& pos, const vecf& pv, Color c = PURPLE)
 	{
 		RectangleShape r;
@@ -337,21 +360,20 @@ public:
 		drtDraw(r);
 	}
 	
-	
-	void a()
+	void testRetro()
 	{
 		Texture tx;
-		tx.loadFromFile("resources/china.png");
+		tx.loadFromFile(resourcePath() / "images" / "china.png");
 		ZImage zim {tx.copyToImage()};
 		zim.convertToRetroColor();
-		zim.saveToFile("resources/retroExc.png");
+		zim.saveToFile(resourcePath() / "images" / "retroExc.png");
 	}
 	
 	void makeBlotchTx()
 	{
 		Texture tx;
-//		tx.loadFromFile("resources/blotch.png");
-		tx.loadFromFile("resources/blotch2.png");
+		//		tx.loadFromFile((resourcePath() / "images" / "blotch.png").string());
+		tx.loadFromFile((resourcePath() / "images" / "blotch2.png").string());
 		Sprite s {tx};
 		Color anchor = Color(210, 215, 215);
 		drt.clear(anchor);
@@ -387,14 +409,12 @@ public:
 		drtDraw(s2);
 		rts.setTexture(drt.getTexture());
 		
-		zim.saveToFile("resources/newblotches.png");
+		zim.saveToFile((resourcePath() / "images" / "newblotches.png").string());
 	}
-
-	void dbgSky(Color c);
 	
 	void checkForShortSegs(float segLength)
 	{
-		ifstream ifs {"levels/platforms.txt"};
+		ifstream ifs {resourcePath() / "levels" / "platforms.txt"};
 		ofstream ofs {"abc.txt"};
 		string line;
 		while (getline(ifs, line)) {
@@ -420,7 +440,44 @@ public:
 		ifs.close();
 		ofs.close();
 	}
-// ///////////////////////////////
-   
+	
+	void testCcvCvx ()
+	{
+		static bool reset = false;
+		for (auto& p : platforms)
+			for (auto& s : p.segs) {
+				if (
+					!s.concaveFromPrev
+					//								!reset && s.concaveToNext && angleBetween(s.angle, s.next->angle) < maxAngForRoll
+					//								|| !s.concaveToNext && angleBetween(s.angle, s.next->angle) < maxAngForRollCvx
+					)
+					s.spr.setColor(Color::Black);
+				else s.spr.setColor(Color::White);
+			}
+		reset = !reset;
+	}
+	
+	class RR : public RectangleShape
+	{ public: RR(){ setSize({150,150});setPosition(0,400);} };
+	RR rr{};
+	
+	class RRR : public RectangleShape
+	{ public: RRR(){ setSize({150,150});setPosition(0,600);} };
+	RRR rrr{};
+
+	Sprite                  rts;
+	VertexArray 			gsva {Lines};
+	Text            		mouseTxt;
+	RenderTexture 			drt;
+
+	//	GroundSegment gs {{800,500}, {850,500}};
+	LineSegment 			lastPath;
+	string 					dbgMsg;
+	uint 					frameCounter = 0;
+	uint 					storedFrame = 0;
+	bool 					enterBreakpoints = false;
+	bool 					firstCollision = false;
+	
 }; //end class State
+
 #endif

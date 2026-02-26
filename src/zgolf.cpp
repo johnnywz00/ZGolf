@@ -12,161 +12,62 @@
 
 State* State::instance_ = nullptr;
 
-void State::loadFonts ()
-{
-	fontMap.clear();
-	string basePath = "resources/";
-	Font f;
-	forNum (int(fontList.size())) {
-		string fileName = fontList[i].first;
-		string filePath = basePath + fileName;
-#ifdef EMBEDDED_HPP
-		if (!loadByMethod(f, filePath))
-#else
-		if (!f.loadFromFile(filePath))
-#endif
-			cerr << "Couldn't load texture " << filePath << endl;
-		else
-			fontMap.insert({fontList[i].second, f});
-	}
-}
-
-void State::addTexToMap(pair<string, string> strPair)
-{
-	Texture tex;
-	string fileName = strPair.first;
-	string filePath = "resources/" + fileName;
-#ifdef EMBEDDED_HPP
-	if (!loadByMethod(tex, filePath))
-#else
-	if (!tex.loadFromFile(filePath))
-#endif
-		cerr << "Couldn't load texture " << filePath << endl;
-	else {
-		txMap[strPair.second] = tex;
-	}
-}
-
-void State::loadTextures ()
-{
-	txMap.clear();
-	string basePath = "resources/";
-	Texture tex;
-	auto vec = vecPlusVec(txList, surfaceEndList);
-	forNum (vec.size()) {
-		string fileName = vec[i].first;
-		string filePath = basePath + fileName;
-#ifdef EMBEDDED_HPP
-		if (!loadByMethod(tex, filePath))
-#else
-		if (!tex.loadFromFile(filePath))
-#endif
-			cerr << "Couldn't load texture " << filePath << endl;
-		else
-			txMap.insert({vec[i].second, tex});
-	}
-
-	/* This block for repeating textures */
-	vec = vecPlusVec(surfaceTypeList, fillTypeList);
-	forNum (vec.size()) {
-		string fileName = vec[i].first;
-		string filePath = basePath + fileName;
-#ifdef EMBEDDED_HPP
-		if (!loadByMethod(tex, filePath))
-#else
-		if (!tex.loadFromFile(filePath))
-#endif
-			cerr << "Couldn't load texture " << filePath << endl;
-		else {
-			tex.setRepeated(true);
-			txMap.insert({vec[i].second, tex});
-		}
-	}
-}
-
-void State::loadSounds ()
-{
-	soundMap.clear();
-	buffers.clear();
-	buffers.reserve(soundList.size());
-	string basePath = "resources/";
-	forNum (int(soundList.size())) {
-		string fileName = soundList[i].first;
-		string filePath = basePath + fileName;
-		SoundBuffer sb;
-#ifdef EMBEDDED_HPP
-		if (!loadByMethod(sb, filePath))
-#else
-		if (!sb.loadFromFile(filePath))
-#endif
-			cerr << "Couldn't load sound file " << filePath << endl;
-		else {
-			buffers.push_back(sb);
-			Sound s { buffers.back() };
-			soundMap.insert({soundList[i].second, s});
-		}
-	}
-}
-
 
 void State::onCreate ()
 {
 	instance_ = this;
-	loadFonts();
-	loadSounds();
-	loadTextures();
 	
 	loadCourses();
 
-	bkgdSpr.setTexture(txMap["bkgd"]);
-	bkgdSpr.setPosition(-10, -10);
-	bkgdSpr.setScale(1.1, 1.1);
-	menuTitle = Text("ZGolf", fontMap["menuTitle"], 230);
+	bkgdSpr.setTexture(gTexture("bkgd"));
+	auto sz = bkgdSpr.getTexture()->getSize();
+	bkgdSpr.setScale(scrw / sz.x, scrh / sz.y);
+	menuTitle = Text("ZGolf", gFont("menuTitle"), 230);
 	menuTitle.setOutlineThickness(10);
 	menuTitle.setOutlineColor(DKORANGE);
 	menuTitle.setFillColor(ORANGE75);
 	centerOrigin(menuTitle);
-	menuTitle.setPosition(SCRCX, 200);
-	float buttonX = SCRCX - 500;
+	menuTitle.setPosition(scrcx, 200);
+	float buttonX = scrcx - 500;
 	forNum(3) {
 		string fname = courses[i].holes[0].platformsFile;
-		addTexToMap(make_pair(fname + ".png", fname));
+		Resources::addTexToMap(make_pair(fname + ".png", fname));
 		courseButtons.emplace_back(courses[i], vecf(buttonX, 800));
 		buttonX += 500;
 	}
 	
-	toolWin.init(fontMap["flagFont"]);
+	toolWin.init();
 	loadToolbarButtons();
 	
-	statsTxt = Text("", fontMap["flagFont"], 20);
+	statsTxt = Text("", gFont("stats"), 20);
 	statsTxt.setPosition(10, 15);
 	statsTxt.setOutlineThickness(3);
 	statsTxt.setOutlineColor(CHARCOAL);
 	statsTxt.setFillColor(Color(200, 200, 210));
 	
-	mouseTxt = Text("", fontMap["debugFont"], 13);
+	mouseTxt = Text("", gFont("debugFont"), 13);
 	mouseTxt.setPosition(8, 58);
 	mouseTxt.setOutlineColor(Color::Black);
 	mouseTxt.setFillColor(Color::Black);
 
-	mx = Mouse::gP(*w).x;
-	my = Mouse::gP(*w).y;
+	mouseVec.x = Mouse::gP(*rwin).x;
+	mouseVec.y = Mouse::gP(*rwin).y;
 	
-	ball.setTexture(txMap["ball"]);
+	ball.setTexture(gTexture("ball"));
 	centerOrigin(ball);
 	ball.speedClamp = speedClamp;
 	ballRadius = ball.gLB().height / 2;
 	
-	flag.setTexture(txMap["flag"]);
+	flag.setTexture(gTexture("flag"));
 	flag.setOrigin(flag.gLB().left + flag.gLB().width / 2,
 				   flag.gLB().top + flag.gLB().height);
 	
-	flagTxt = Text("", fontMap["flagFont"], 13);
+	flagTxt = Text("", gFont("flagFont"), 13);
 	flagTxt.setFillColor(Color::Black);
 	
 	for (int i = 0; i < 10; ++i) {
-		clouds[i].setTexture(txMap["cloud"]);
-		clouds[i].sP(randRange(0, SCRW + 400), randRange(0, SCRH - 50));
+		clouds[i].setTexture(gTexture("cloud"));
+		clouds[i].sP(randRange(0, scrw + 400), randRange(0, scrh - 50));
 		float factor = float(randRange(50, 120)) / 100;
 		clouds[i].setScale(factor, factor);
 		cloudVels[i] = float(randRange(5, 30)) / 100;
@@ -175,13 +76,13 @@ void State::onCreate ()
 	}
 
 	curPlatforms.reserve(50);
-	filenameTbox = Textbox(fontMap["debugFont"], {1500, 25});
-	fillInfoTbox = Textbox(fontMap["debugFont"], {1500, 70});
+	filenameTbox = Textbox(gFont("debug"), {1500, 25});
+	fillInfoTbox = Textbox(gFont("debug"), {1500, 70});
 	
 	loadCourse(courses[0]); // / CONTROL WITH MENU SELECTION LATER
 	
 	loadAnimFrames();
-	deh.setTexture(txMap["deh"]);
+	deh.setTexture(gTexture("deh"));
 	deh.setColor(Color(150, 150, 150));
 	setDehFrame(0); //@kludgeAnim
 	deh.setOrigin(deh.gLB().left + deh.gLB().width - 15, deh.gLB().top + deh.gLB().height - 12);
@@ -189,10 +90,10 @@ void State::onCreate ()
 	resetGame();
 	
 	// DEBUG ///////////
-	drt.create(SCRW, SCRH);
-	rtImg.create(SCRW, SCRH, Color::Transparent);
-	rtTx.loadFromImage(rtImg);
-	rts.setTexture(rtTx);
+	drt.create(scrw, scrh);
+	trajecImg.create(scrw, scrh, Color::Transparent);
+	trajecTx.loadFromImage(trajecImg);
+	trajecSpr.setTexture(trajecTx);
 	VertexArray tempVa {Lines};
 	
 	
@@ -207,54 +108,121 @@ void State::onCreate ()
 //	drt.display();
 //	rts.setTexture(drt.getTexture());
 	
-	
 	floatEps = .001;
 } //end onCreate
 
 
-void State::resetGame ()
+void State::onMouseDown (int x, int y)
 {
-	if (mode == play)
-		ballActive = true;
-	else
-		ballActive = false;
-	ball.setVelocity(0, 0);
+	if (mode == menu)
+		menuClick(x, y);
 	
-	// DEBUG BALL START LOCATION
-	{
-//		ball.sP(ScrCX, ScrCY);
-		
-//		ifstream fs {"ballstart.txt"};
-//		string line;
-//		getline(fs, line);
-//		stringstream ss(line);
-//		string tok;
-//		ss >> tok;
-//		vecf pos;
-//		pos.x = stof(tok);
-//		ss >> tok;
-//		pos.y = stof(tok);
-//		fs.close();
-//		ball.sP(pos);
+	else if (mode == design)
+		designClick(x, y);
+	
+	else {
+		if (iKP(Tab)) {
+			ofstream fs {"ballstart.txt", ios_base::trunc};
+			fs << tS(x) + " " + tS(y);
+			fs.close();
+			ballActive = true;
+			rolling = false;
+			gSeg = nullptr;
+			ball.sP(x, y);
+		}
 	}
-	
-	gClicked = nullptr;
-	gHighlighted = nullptr;
-	gSeg = nullptr;
-	rolling = false;
-	putting = false;
-	pullingBack = false;
-	inCrotch = false;
-	onCusp = false;
-	powerRising = true;
-	
-	//DEBUG ///////
-//	ballActive = false;
 }
 
 
-void State::draw () {
+void State::onMouseUp (int x, int y)
+{
+	gClicked = nullptr;
+	toolWin.clickDragging = false;
+}
+
+
+void State::onKeyPress (Keyboard::Key k)
+{
+	switch(k) {
+			
+		case Keyboard::Escape:
+			if (mode == menu)
+				app->close();
+			else
+				mode = menu;
+			break;
+			
+		case Keyboard::M:
+			mode == design ? switchToPlay() : switchToDesign();
+			break;
+			
+		case Keyboard::Y:
+			resetGame();
+			break;
+			
+		default:
+			if (mode == design)
+				designKeyPress(k);
+			else switch(k) {
+					
+				case Keyboard::T:
+					ballActive = !ballActive;
+					break;
+					
+				case Keyboard::N:
+					loadNextHole();
+					break;
+					
+				case Keyboard::Slash:
+					drt.clear(Color::Transparent);
+					break;
+					
+				case Keyboard::Period:
+					testRetro();
+					//					makeBlotchTx();
+					//					checkForShortSegs(15);
+					break;
+					
+				default:
+					break;
+			}
+	}
+}
+
+void State::onKeyRelease (Keyboard::Key) {
 	
+}
+
+void State::update (const Time& time) {
+	
+	++frameCounter;
+	if (frameCounter == 2000000)
+		frameCounter = 1;
+	
+	timedMgr->fireReadyEvents(time);
+	
+	for (int i = 0; i < 10; ++i) {
+		clouds[i].move(-cloudVels[i], 0);
+		if (clouds[i].gGB().left + clouds[i].gGB().width < -1)
+			clouds[i].sP(scrw + 2, clouds[i].gP().y);
+	}
+	
+	
+	if (mode == design)
+		designUpdate();
+	else playUpdate(time);
+	
+	
+	//DEBUG
+	//	statsTxt.setString(
+	//					   tS(timedMgr->events.size())
+	//					   tS(getBrightness(gw->redrawColor))
+	//					   );
+}
+
+void State::draw ()
+{
+	auto w = rwin;
 	if (mode == menu)
 		menuDraw();
 	
@@ -267,7 +235,7 @@ void State::draw () {
 			w->draw(clouds[i]);
 		}
 		
-		w->draw(rts); // using for fading trajectory
+		w->draw(trajecSpr);
 		w->draw(curHoleSprite);
 //		for (auto& p : platforms) {
 //			w->draw(p.s);
@@ -305,12 +273,53 @@ void State::draw () {
 //	w->draw(mouseTxt);
 }
 
-void State::menuDraw ()
+void State::loadAnimFrames()
 {
-	w->draw(bkgdSpr);
-	w->draw(menuTitle);
-	for (auto& cb : courseButtons)
-		w->draw(cb);
+	int orderNums[] = {2, 1, 0, -1, -2, -3, -4, -5, -6};
+	forNum(9) {
+		IntRect rect {62 * (i % 4), 53 * (i / 4), 62, 53};
+		swingFrames.emplace_back(rect, orderNums[i]);
+	}
+}
+
+void State::resetGame ()
+{
+	if (mode == play)
+		ballActive = true;
+	else
+		ballActive = false;
+	ball.setVelocity(0, 0);
+	
+	// DEBUG BALL START LOCATION
+	{
+		//		ball.sP(ScrCX, ScrCY);
+		
+		//		ifstream fs {"ballstart.txt"};
+		//		string line;
+		//		getline(fs, line);
+		//		stringstream ss(line);
+		//		string tok;
+		//		ss >> tok;
+		//		vecf pos;
+		//		pos.x = stof(tok);
+		//		ss >> tok;
+		//		pos.y = stof(tok);
+		//		fs.close();
+		//		ball.sP(pos);
+	}
+	
+	gClicked = nullptr;
+	gHighlighted = nullptr;
+	gSeg = nullptr;
+	rolling = false;
+	putting = false;
+	pullingBack = false;
+	inCrotch = false;
+	onCusp = false;
+	powerRising = true;
+	
+	//DEBUG ///////
+	//	ballActive = false;
 }
 
 void State::loadCourses()
@@ -341,7 +350,6 @@ void State::loadCourses()
 		else {
 			CourseHole chl {};
 			chl.platformsFile = line;
-//			txList.push_back({line + ".png", line});
 			chl.holeNumber = (int)course.holes.size() + 1;
 			course.holes.push_back(chl);
 		}
@@ -395,7 +403,7 @@ void State::loadNextHole()
 			, BUTTERSKY, PEACH
 #endif
 		};
-		gw->setRedrawColor(randElemVal(skyColors));
+		app->setRedrawColor(randElemVal(skyColors));
 	}
 }
 
@@ -432,7 +440,6 @@ void State::loadPlatforms (string fname)
 	
 		// variable to be reused as each platform is built
 	Platform p;
-	RenderTexture rt;
 	p.segs.reserve(segCts[platCt]);
 	while (std::getline(plats, line)) {
 		
@@ -513,8 +520,8 @@ void State::loadPlatforms (string fname)
 		}
 		else surfaceType = g.facesUp ? "grass" : "dirt";
 		g.surfaceType = surfaceType;
-		g.initSprite(txMap[surfaceType]); // unused?
-		g.txt.setFont(fontMap["debugFont"]);
+		g.initSprite(gTexture(surfaceType)); // unused?
+		g.txt.setFont(gFont("debug"));
 		g.muK = physicsMap[surfaceType].muK;
 		g.muS = physicsMap[surfaceType].muS;
 		g.bounceLoss = physicsMap[surfaceType].bounceLoss;
@@ -536,8 +543,16 @@ void State::loadPlatforms (string fname)
 		assembleSprite(fname);
 	}
 //	if (txMap.find(fname) == txMap.end())
-		addTexToMap({fname + ".png", fname});
-	curHoleSprite.setTexture(txMap[fname]);
+		Resources::addTexToMap({fname + ".png", fname});
+	curHoleSprite.setTexture(gTexture(fname));
+}
+
+void State::menuDraw ()
+{
+	rwin->draw(bkgdSpr);
+	rwin->draw(menuTitle);
+	for (auto& cb : courseButtons)
+		rwin->draw(cb);
 }
 
 void State::menuClick (int x, int y)
@@ -550,105 +565,6 @@ void State::menuClick (int x, int y)
 	}
 }
 
-
-void State::onMouseDown (int x, int y)
-{
-	if (mode == menu)
-		menuClick(x, y);
-	
-	else if (mode == design)
-		designClick(x, y);
-	
-	else {
-		if (iKP(Tab)) {
-			ofstream fs {"ballstart.txt", ios_base::trunc};
-			fs << tS(x) + " " + tS(y);
-			fs.close();
-			ballActive = true;
-			rolling = false;
-			gSeg = nullptr;
-			ball.sP(x, y);
-		}
-	}
-}
-
-
-void State::onMouseUp (int x, int y)
-{
-	gClicked = nullptr;
-	toolWin.clickDragging = false;
-}
-
-
-void State::onKeyPress (Keyboard::Key k)
-{
-	switch(k) {
-			
-		case Keyboard::Escape:
-			if (mode == menu)
-				gw->close();
-			else
-				mode = menu;
-			break;
-			
-		case Keyboard::M:
-			mode == design ? switchToPlay() : switchToDesign();
-			break;
-			
-		case Keyboard::Y:
-			resetGame();
-			break;
-			
-		default:
-			if (mode == design)
-				designKeyPress(k);
-			else switch(k) {
-					
-				case Keyboard::T:
-					ballActive = !ballActive;
-					break;
-					
-				case Keyboard::N:
-					loadNextHole();
-					break;
-					
-				case Keyboard::Slash:
-					drt.clear(Color::Transparent);
-					break;
-					
-				case Keyboard::Period:
-					a();
-//					makeBlotchTx();
-//					checkForShortSegs(15);
-					break;
-	
-/*
-				case Keyboard::Comma:
-					static bool reset = false;
-					for (auto& p : platforms)
-						for (auto& s : p.segs) {
-							if (
-								!s.concaveFromPrev
-//								!reset && s.concaveToNext && angleBetween(s.angle, s.next->angle) < maxAngForRoll
-//								|| !s.concaveToNext && angleBetween(s.angle, s.next->angle) < maxAngForRollCvx
-								)
-								s.spr.setColor(Color::Black);
-							else s.spr.setColor(Color::White);
-						}
-					reset = !reset;
-					break;
-*/
-				default:
-					break;
-			}
-	}
-}
-
-void State::onKeyRelease (Keyboard::Key) {
-	
-}
-
-
 void State::switchToPlay ()
 {	
 	string arg = filenameTbox.boxTxt.getString();
@@ -660,20 +576,320 @@ void State::switchToPlay ()
 	endRoll();
 }
 
-void State::switchToDesign ()
+void State::assembleSprite (string fname)
 {
-	mode = design;
-	ballActive = false;
+	RenderTexture rt, platRt, segRt;
+	TransformableVxArray va {LineStrip};
+	Texture tex;
+	Sprite spr, platSpr;
 	
-	ball.sP(-100, -100);
-	hole.sP(-100, -100);
-	
-	loadPlatformData(curPlatFile);
-	
-	curSurfType = "grass";
-	toolWin.toolButtons["grass"].isSelected = true;
-	activateSelectButton();
+	rt.create(scrw, scrh); // CHANGE if adding panning
+	platRt.create(scrw, scrh);
+	rt.clear(Color::Transparent);
+	for (auto& p : platforms) {
+		platRt.clear(Color::Transparent);
+		platRt.draw(p.va);
+		platRt.display();
+		ZImage zimg {platRt.getTexture().copyToImage()};
+		vecf startPtFl {p.segs[1].mid};
+		vecU startPt;
+		do {
+			startPtFl += toRect(1, p.segs[1].oppNormal);
+			startPt.x = (uint)startPtFl.x;
+			startPt.y = (uint)startPtFl.y;
+		}
+		while (!zimg.isBlank(zimg.getPixel(startPt)));
+		
+		if (p.fillInfo.type == PlatFillInfo::FillType::imagePixs) {
+			zimg.fillInFromImage(startPt, (resourcePath() / "images" / (std::get<string>(p.fillInfo.arg) + ".png")).string());
+		}
+		// more types like random sprite sprinkling
+		else { // FillType::colorDev
+			auto cdi = std::get<PlatFillInfo::ColorDevInfo>(p.fillInfo.arg);
+			zimg.fillInWithColor(startPt, cdi.c, cdi.dev);
+			zimg.blur(cdi.blurRepetitions);
+		}
+		
+		tex.loadFromImage(zimg);
+		platRt.draw(Sprite(tex));
+		
+		for (auto& seg : p.segs) {
+			auto ySize = gTexture(seg.surfaceType).getSize().y;
+			auto yAboveOrigin = ySize - ballRadius;
+			float nextAng = bisectSmallest(seg.angle, seg.next->angle);
+			float prevAng = bisectSmallest(seg.angle, seg.prev->angle);
+			if (Resources::texExists(seg.surfaceType + "End")) {
+				if (seg.next->surfaceType != seg.surfaceType)
+					nextAng = seg.angle;
+				if (seg.prev->surfaceType != seg.surfaceType)
+					prevAng = seg.angle;
+			}
+			
+			float trAng = prevAng + 90;
+			float brAng = prevAng + 270;
+			float tlAng = nextAng + 90;
+			float blAng = nextAng + 270;
+			
+			vecf tr = seg.start + pVec(ballRadius / max(.1f, absCos(trAng, seg.normal)), trAng);
+			vecf br = seg.start + pVec(yAboveOrigin / max(.1f, absCos(brAng, seg.oppNormal)), brAng);
+			vecf tl = seg.end + pVec(ballRadius / max(.1f, absCos(tlAng, seg.normal)), tlAng);
+			vecf bl = seg.end + pVec(yAboveOrigin / max(.1f, absCos(blAng, seg.oppNormal)), blAng);
+			
+			auto trdif = toPolar(tr - seg.start);
+			auto brdif = toPolar(br - seg.start);
+			auto tldif = toPolar(tl - seg.start);
+			auto bldif = toPolar(bl - seg.start);
+			
+			auto tr2 = seg.start + pVec(trdif.x, trdif.y - seg.angle);
+			auto br2 = seg.start + pVec(brdif.x, brdif.y - seg.angle);
+			auto tl2 = seg.start + pVec(tldif.x, tldif.y - seg.angle);
+			auto bl2 = seg.start + pVec(bldif.x, bldif.y - seg.angle);
+			
+			va.clear();
+			va.appendPtC(tr2, CHARCOAL);
+			va.appendPtC(br2, CHARCOAL);
+			va.appendPtC(bl2, CHARCOAL);
+			va.appendPtC(tl2, CHARCOAL);
+			va.appendPtC(tr2, CHARCOAL);
+			va.configure();
+			auto bounds = va.getBounds();
+			auto dif = vecf(-bounds.left, -bounds.top);
+			vecf ogn = seg.start - vecf(bounds.left, bounds.top);
+			va.move(dif);
+			
+			segRt.create(bounds.getSize().x, bounds.getSize().y);
+			segRt.clear(Color::Transparent);
+			segRt.draw(va);
+			segRt.display();
+			zimg = segRt.getTexture().copyToImage();
+			auto fillPtF = ogn + vecf(4, 0);
+			vecU fillPt = {(uint)fillPtF.x, (uint)fillPtF.y};
+			zimg.fillInWithColor(fillPt, CHARCOAL);
+			zimg.fillInFromImage(fillPt, (resourcePath() / "images" / (seg.surfaceType + ".png")).string());
+			tex.loadFromImage(zimg);
+			spr.setTexture(tex);
+			spr.setTextureRect(IntRect(0, 0, tex.getSize().x, tex.getSize().y));
+			spr.setOrigin(ogn);
+			spr.setPosition(seg.start);
+			spr.setRotation(seg.angle);
+			platRt.draw(spr);
+		}
+		/* Second pass to draw "end caps" where applicable */
+		for (auto& seg : p.segs) {
+			string endkey = seg.surfaceType + "End";
+			if (Resources::texExists(endkey)) {
+				if (seg.next->surfaceType != seg.surfaceType) {
+					Sprite endspr(gTexture(endkey));
+					endspr.setOrigin(0, ballRadius);
+					endspr.setRotation(seg.angle);
+					endspr.setPosition(seg.end);
+					endspr.setScale(1, -1);
+					platRt.draw(endspr);
+				}
+				if (seg.prev->surfaceType != seg.surfaceType) {
+					Sprite endspr(gTexture(endkey));
+					endspr.setOrigin(0, ballRadius);
+					endspr.setRotation(seg.angle);
+					endspr.setPosition(seg.start);
+					endspr.setScale(-1, -1);
+					platRt.draw(endspr);
+				}
+			}
+		}
+		platRt.display();
+		// Use these two lines if dynamic platforms introduced
+		//		p.tx = platRt.getTexture();
+		//		p.s.setTexture(p.tx);
+		platSpr.setTexture(platRt.getTexture());
+		platSpr.setTextureRect(IntRect(0, 0, scrw, scrh));
+		rt.draw(platSpr);
+	}
+	rt.display();
+	rt.getTexture().copyToImage().saveToFile((resourcePath() / "images" / (fname + ".png")).string());
+	ofstream ofs { "levels/" + fname + ".txt", std::ios_base::app };
+	ofs << "\nSPRITE_CACHED\n";
+	ofs.close();
 }
+
+void State::playUpdate (const Time& time) {
+	
+	// DEBUG CONTROLS
+	ikp(Z) {
+		if (iKP(LShift)) muK = decm(muK, .01);
+		else muK = incm(muK, .01, 5);
+		PAUSE;
+	}
+	ikp(X) {
+		if (iKP(LShift)) muS = decm(muS, .01);
+		else muS = incm(muS, .01, 5);
+		PAUSE;
+	}
+	adjustVal(Num1, bounceLoss, .02, 0, 1)
+	adjustVal(Num2, maxAngForRoll, 1, 0, 359)
+	adjustVal(Num3, maxAngForRollCvx, 1, 0, 359)
+	adjustVal(Num4, convexRollClamp, .02, 0, 5)
+	adjustVal(Num5, centrifugalDecmFactor, .02, 0, 1)
+	adjustVal(Num6, centrifugalIncmFactor, .02, 0, 1)
+	
+	
+	bool dbgMove = false;
+	if (iKP(D)) { ball.move(2, 0); dbgMove = true; }
+	if (iKP(A)) { ball.move(-2, 0); dbgMove = true; }
+	if (iKP(W)) { ball.move(0, -2); dbgMove = true; }
+	if (iKP(S)) { ball.move(0, 2); dbgMove = true; }
+	if (dbgMove) {
+		rolling = false;
+		gSeg = nullptr;
+	}
+	
+	
+	//////////////
+	
+	
+	// DEBUG MOUSE AIM: comment out the release aiming
+	//	vecf dif = vecf(mx, my) - ball.gP();
+	//	angle = toPolar(dif).y;
+	/////////////////
+	
+	/* Keyboard control of club aim */
+	if ( iKP(Right) && !iKP(Left)) {
+		angle += angleRate;
+		if (angle >= 360)
+			angle  -= 360;
+	}
+	if ( iKP(Left) && !iKP(Right)) {
+		angle -= angleRate;
+		if (angle < 0)
+			angle += 360;
+	}
+	
+	/* Mouse for shot aim */
+	float oldAng = angle;
+	float aimRadius = 400;
+	vecf oldVec = pVec(aimRadius, oldAng);
+	vecf mouseDif = toVecF(mouseVec - oldMouse);
+	vecf newVec = oldVec + mouseDif;
+	angle = toPolar(newVec).y;
+	
+	if (gSeg) {
+		/* Can't iron shoot nearly parallel with surface */
+		float leftThresh = gSeg->angle;
+		float rightThresh = gSeg->oppAngle;
+		if (inCrotch) {
+			leftThresh = crotchInfo.nextSeg()->angle;
+			rightThresh = crotchInfo.prevSeg()->angle;
+		}
+		leftThresh = czdg(leftThresh + minAngForIronShot);
+		rightThresh = czdg(rightThresh - minAngForIronShot);
+		if (angleIsOrFallsBetween(angle, rightThresh, leftThresh)) {
+			angle = angleBetween(angle, leftThresh) < angleBetween(angle, rightThresh) ? leftThresh : rightThresh;
+		}
+		/* Can't shoot nearly vertical */
+		leftThresh = 270 - ironMinDevFromVertical;
+		rightThresh = 270 + ironMinDevFromVertical;
+		if (angleIsOrFallsBetween(angle, leftThresh, rightThresh))
+			angle = clockwiseOf(angle, oldAng) ? rightThresh : leftThresh;
+	}
+	
+	
+	if (ballActive) {
+		
+		if (timedMgr->gOn("canShoot") && gSeg) {
+			updateGuide();
+			
+			if (iKP(Space))
+				handleSwing();
+			
+			else if (!iKP(Space) && pullingBack)
+				startDownswing();
+		}
+		
+		ball.addVelocity(0, gravity);
+		
+		if (rolling) {
+			if (!gSeg) {
+				ballActive = false;
+				zeroOutVelocity();
+				dbgMsg = "  ROLL CALL WHILE GSEG NULL";
+			}
+			/* roll() itself will transition to fly() if the newly added gravity
+			 * pulls the ball away from the surface
+			 */
+			roll(1.f);
+		}
+		else fly(1.f);
+	}
+	
+	/* Fading ball trajectory */
+	Image img {drt.getTexture().copyToImage()};
+	forNum(scrh) {
+		forNumJ(scrw) {
+			/* Get pixel from the trajectory rentex */
+			auto pix = img.getPixel(j, i);
+			/* If it's transparent (not drawn to last frame) get the
+			 * pixel from the stored image and decrease its alpha
+			 */
+			if (pix.a == 0) {
+				pix = trajecImg.getPixel(j, i);
+				if (pix.a == 0)
+					continue;
+				else (pix.a = max(0, pix.a - 5));
+			}
+			trajecImg.setPixel(j, i, pix);
+		}
+	}
+	drt.clear(Color::Transparent);
+	trajecTx.update(trajecImg);
+	
+	
+	/*
+	 // THIS LEAVES faint trajectory behind and taints the sky color
+	 Color c = gw->redrawColor;
+	 c.a = 5;
+	 RectangleShape r;
+	 r.setSize({scrw, scrh});
+	 r.setFillColor(c);
+	 drtDraw(r);
+	 */
+	
+	/*
+	 //causes purple color to degenerate to blackish before fading
+	 ZImage zim {drt.getTexture().copyToImage()};
+	 zim.fadeByAlphaVal(5); //turn off if all ghosts are faded
+	 Texture tx;
+	 tx.loadFromImage(zim);
+	 Sprite spr(tx);
+	 drt.clear(Color::Transparent);
+	 drtDraw(spr);
+	 */
+	
+	// This doesn't have to be recomputed every frame
+	statsTxt.setString(
+					   "COURSE: " + curCourse->courseName +
+					   "      HOLE: " + tS(curCourse->curHole->holeNumber) +
+					   "     PAR: " + tS(curCourse->curHole->par) +
+					   "\nSTROKES: " + tS(curCourse->curHole->strokeCt) +
+					   "     TOTAL: " + tS(curCourse->strokeCt)
+					   );
+	
+	mouseTxt.setString(
+					   tS(mouseVec.x) + ", " + tS(mouseVec.y)
+					   //					   fS(ball.gP().x) + ", " + fS(ball.gP().y)
+					   //					   tS(powerBarOutline.getVertexCount())
+					   + (mode == design ? " DESIGN" : " PLAY") + " " + fS(power)
+					   + "\nMove ball: DAWS\nMode: M\nClear Map: X\nFinish Ground: U\nReset: Y\nAim: Left/Right\nShoot: SPACE\nPutt: SHIFT+SPACE\n"
+					   + "muK: Z + (" + fS(muK, 2) + ")\nmuS: X + (" + fS(muS, 2) + ")"
+					   +"\n bounceLoss(1): "+fS(bounceLoss,2)
+					   +"\n maxCcvRoll(2): "+fS(maxAngForRoll)
+					   +"\n maxCvxRoll(3): "+fS(maxAngForRollCvx)
+					   +"\n cvxRollClamp(4): "+fS(convexRollClamp,2)
+					   +"\n centrifDcm(5): "+fS(centrifugalDecmFactor,2)
+					   +"\n centrifIcm(6): "+fS(centrifugalIncmFactor,2)
+					   
+					   +"\n\n"+dbgMsg
+					   );
+	
+} //end update
 
 void State::updateGuide()
 {
@@ -681,7 +897,7 @@ void State::updateGuide()
 	vecF ogn = ball.gP();
 	for (int i = 0; i < 200; i += 8) {
 		uint grayVal = 50;
-		if (getBrightness(gw->redrawColor) < 60)
+		if (getBrightness(app->redrawColor) < 60)
 			grayVal = 230;
 		Color c = Color(grayVal, grayVal, grayVal);
 		guideline.appendPtC(ogn + pVec(i, angle), c);
@@ -692,6 +908,40 @@ void State::updateGuide()
 	if (angleIsOrFallsBetween(angle, 90, 270))
 		deh.setScale(-1, 1);
 	else deh.setScale(1, 1);
+}
+
+void State::handleSwing ()
+{
+	if (!pullingBack) {
+		pullingBack = true;
+		powerRising = true;
+		if (iKP(LShift) || gSeg && physicsMap[gSeg->surfaceType].puttOnly)
+			putting = true;
+	}
+	if (powerRising) {
+		if (power < maxPct)
+			power = incm(power, powerRate, maxPct);
+		else powerRising = false;
+	}
+	else {
+		if (power > 0)
+			power = decm(power, powerRate);
+		else powerRising = true;
+	}
+	updatePowerBar(power / maxPct);
+	
+	
+	int frameNum = 0;	//@kludgeAnim
+	if 		(power > 90) frameNum = -6;
+	else if (power > 72) frameNum = -5;
+	else if (power > 54) frameNum = -4;
+	else if (power > 36) frameNum = -3;
+	else if (power > 18) frameNum = -2;
+	else if (power > 0)  frameNum = -1;
+	
+	if (putting)
+		frameNum = max(frameNum, -2);
+	setDehFrame(frameNum);
 }
 
 void State::updatePowerBar(float pct)
@@ -744,15 +994,6 @@ void State::updatePowerBar(float pct)
 	}
 }
 
-void State::setDehFrame (int orderNum) //@kludgeAnim
-{
-	auto& frame = swingFrames[indexWhich(swingFrames,
-			[orderNum](auto x) { return x.orderNum == orderNum; }
-										 )];
-	deh.setTextureRect(frame.subRect);
-	curFrameNum = frame.orderNum;
-}
-
 void State::startDownswing ()
 {
 	if (putting && curFrameNum == 1
@@ -761,9 +1002,9 @@ void State::startDownswing ()
 			setDehFrame(0);
 			putting = false;
 		});
-//		putting = false;
-			/* Causing putt animation to follow through as far as iron swing: are
-			 * copies of Fuses or FusePtrs being made and running directly after this */
+		//		putting = false;
+		/* Causing putt animation to follow through as far as iron swing: are
+		 * copies of Fuses or FusePtrs being made and running directly after this */
 		return;
 	}
 	setDehFrame(curFrameNum + 1);
@@ -772,38 +1013,13 @@ void State::startDownswing ()
 	timedMgr->addEvent(putting ? .2 : .1, [&]() { startDownswing(); });
 }
 
-void State::handleSwing ()
+void State::setDehFrame (int orderNum) //@kludgeAnim
 {
-	if (!pullingBack) {
-		pullingBack = true;
-		powerRising = true;
-		if (iKP(LShift) || gSeg && physicsMap[gSeg->surfaceType].puttOnly)
-			putting = true;
-	}
-	if (powerRising) {
-		if (power < maxPct)
-			power = incm(power, powerRate, maxPct);
-		else powerRising = false;
-	}
-	else {
-		if (power > 0)
-			power = decm(power, powerRate);
-		else powerRising = true;
-	}
-	updatePowerBar(power / maxPct);
-	
-	
-	int frameNum = 0;	//@kludgeAnim
-	if 		(power > 90) frameNum = -6;
-	else if (power > 72) frameNum = -5;
-	else if (power > 54) frameNum = -4;
-	else if (power > 36) frameNum = -3;
-	else if (power > 18) frameNum = -2;
-	else if (power > 0)  frameNum = -1;
-	
-	if (putting)
-		frameNum = max(frameNum, -2);
-	setDehFrame(frameNum);
+	auto& frame = swingFrames[indexWhich(swingFrames,
+			[orderNum](auto x) { return x.orderNum == orderNum; }
+										 )];
+	deh.setTextureRect(frame.subRect);
+	curFrameNum = frame.orderNum;
 }
 
 void State::launch ()
@@ -836,219 +1052,9 @@ void State::launch ()
 	onCusp = false;
 	disableShooting();
 	power = 0;
-	soundMap[putting ? "putt" : "swing"].play();
+	gSound(putting ? "putt" : "swing").play();
 	// putting is set false by Fuse
 }
-
-
-void State::update (const Time& time) {
-	
-	++frameCounter;
-	if (frameCounter == 2000000)
-		frameCounter = 1;
-	
-	timedMgr->fireReadyEvents(time);
-	
-	for (int i = 0; i < 10; ++i) {
-		clouds[i].move(-cloudVels[i], 0);
-		if (clouds[i].gGB().left + clouds[i].gGB().width < -1)
-			clouds[i].sP(SCRW + 2, clouds[i].gP().y);
-	}
-
-	
-	if (mode == design)
-		designUpdate();
-	else playUpdate(time);
-
-	
-	//DEBUG
-//	statsTxt.setString(
-//					   tS(timedMgr->events.size())
-//					   tS(getBrightness(gw->redrawColor))
-//					   );
-}
-
-
-void State::playUpdate (const Time& time) {
-	
-		// DEBUG CONTROLS
-	ikp(Z) {
-		if (iKP(LShift)) muK = decm(muK, .01);
-		else muK = incm(muK, .01, 5);
-		PAUSE;
-	}
-	ikp(X) {
-		if (iKP(LShift)) muS = decm(muS, .01);
-		else muS = incm(muS, .01, 5);
-		PAUSE;
-	}
-	adjustVal(Num1, bounceLoss, .02, 0, 1)
-	adjustVal(Num2, maxAngForRoll, 1, 0, 359)
-	adjustVal(Num3, maxAngForRollCvx, 1, 0, 359)
-	adjustVal(Num4, convexRollClamp, .02, 0, 5)
-	adjustVal(Num5, centrifugalDecmFactor, .02, 0, 1)
-	adjustVal(Num6, centrifugalIncmFactor, .02, 0, 1)
-
-	
-	bool dbgMove = false;
-	if (iKP(D)) { ball.move(2, 0); dbgMove = true; }
-	if (iKP(A)) { ball.move(-2, 0); dbgMove = true; }
-	if (iKP(W)) { ball.move(0, -2); dbgMove = true; }
-	if (iKP(S)) { ball.move(0, 2); dbgMove = true; }
-	if (dbgMove) {
-		rolling = false;
-		gSeg = nullptr;
-	}
-	
-	
-	//////////////
-	
-	
-	// DEBUG MOUSE AIM: comment out the release aiming
-//	vecf dif = vecf(mx, my) - ball.gP();
-//	angle = toPolar(dif).y;
-	/////////////////
-
-		/* Keyboard control of club aim */
-	if ( iKP(Right) && !iKP(Left)) {
-		angle += angleRate;
-		if (angle >= 360)
-			angle  -= 360;
-	}
-	if ( iKP(Left) && !iKP(Right)) {
-		angle -= angleRate;
-		if (angle < 0)
-			angle += 360;
-	}
-	
-	/* Mouse for shot aim */
-	float oldAng = angle;
-	float aimRadius = 400;
-	vecf oldVec = pVec(aimRadius, oldAng);
-	vecf mouseVec = (vecf(mx, my) - vecf(mxOld, myOld));
-	vecf newVec = oldVec + mouseVec;
-	angle = toPolar(newVec).y;
-	
-	if (gSeg) {
-		/* Can't iron shoot nearly parallel with surface */
-		float leftThresh = gSeg->angle;
-		float rightThresh = gSeg->oppAngle;
-		if (inCrotch) {
-			leftThresh = crotchInfo.nextSeg()->angle;
-			rightThresh = crotchInfo.prevSeg()->angle;
-		}
-		leftThresh = czdg(leftThresh + minAngForIronShot);
-		rightThresh = czdg(rightThresh - minAngForIronShot);
-		if (angleIsOrFallsBetween(angle, rightThresh, leftThresh)) {
-			angle = angleBetween(angle, leftThresh) < angleBetween(angle, rightThresh) ? leftThresh : rightThresh;
-		}
-		/* Can't shoot nearly vertical */
-		leftThresh = 270 - ironMinDevFromVertical;
-		rightThresh = 270 + ironMinDevFromVertical;
-		if (angleIsOrFallsBetween(angle, leftThresh, rightThresh))
-			angle = clockwiseOf(angle, oldAng) ? rightThresh : leftThresh;
-	}
-
-	
-	if (ballActive) {
-	
-		if (timedMgr->gOn("canShoot") && gSeg) {
-			updateGuide();
-			
-			if (iKP(Space))
-				handleSwing();
-			
-			else if (!iKP(Space) && pullingBack)
-				startDownswing();
-		}
-		
-		ball.addVelocity(0, gravity);
-		
-		if (rolling) {
-			if (!gSeg) {
-				ballActive = false;
-				zeroOutVelocity();
-				dbgMsg = "  ROLL CALL WHILE GSEG NULL";
-			}
-			/* roll() itself will transition to fly() if the newly added gravity
-			 * pulls the ball away from the surface
-			 */
-			roll(1.f);
-		}
-		else fly(1.f);
-	}
-	
-	/* Fading ball trajectory */
-	Image img {drt.getTexture().copyToImage()};
-	forNum(SCRH) {
-		forNumJ(SCRW) {
-			/* Get pixel from the trajectory rentex */
-			auto pix = img.getPixel(j, i);
-			/* If it's transparent (not drawn to last frame) get the
-			 * pixel from the stored image and decrease its alpha
-			 */
-			if (pix.a == 0) {
-				pix = rtImg.getPixel(j, i);
-				if (pix.a == 0)
-					continue;
-				else (pix.a = max(0, pix.a - 5));
-			}
-			rtImg.setPixel(j, i, pix);
-		}
-	}
-	drt.clear(Color::Transparent);
-	rtTx.update(rtImg);
-	
-	
-	/*
-	// THIS LEAVES faint trajectory behind and taints the sky color
-	Color c = gw->redrawColor;
-	c.a = 5;
-	RectangleShape r;
-	r.setSize({SCRW, SCRH});
-	r.setFillColor(c);
-	drtDraw(r);
-		*/
-	
-	/*
-	 //causes purple color to degenerate to blackish before fading
-	ZImage zim {drt.getTexture().copyToImage()};
-	zim.fadeByAlphaVal(5); //turn off if all ghosts are faded
-	Texture tx;
-	tx.loadFromImage(zim);
-	Sprite spr(tx);
-	drt.clear(Color::Transparent);
-	drtDraw(spr);
-	*/
-	
-	// This doesn't have to be recomputed every frame
-	statsTxt.setString(
-					   "COURSE: " + curCourse->courseName +
-					   "      HOLE: " + tS(curCourse->curHole->holeNumber) +
-					   "     PAR: " + tS(curCourse->curHole->par) + 
-					   "\nSTROKES: " + tS(curCourse->curHole->strokeCt) +
-					   "     TOTAL: " + tS(curCourse->strokeCt)
-					   );
-	
-	mouseTxt.setString(
-					   tS(mx) + ", " + tS(my)
-//					   fS(ball.gP().x) + ", " + fS(ball.gP().y)
-//					   tS(powerBarOutline.getVertexCount())
-					   + (mode == design ? " DESIGN" : " PLAY") + " " + fS(power)
-					   + "\nMove ball: DAWS\nMode: M\nClear Map: X\nFinish Ground: U\nReset: Y\nAim: Left/Right\nShoot: SPACE\nPutt: SHIFT+SPACE\n"
-		+ "muK: Z + (" + fS(muK, 2) + ")\nmuS: X + (" + fS(muS, 2) + ")"
-					   +"\n bounceLoss(1): "+fS(bounceLoss,2)
-					   +"\n maxCcvRoll(2): "+fS(maxAngForRoll)
-					   +"\n maxCvxRoll(3): "+fS(maxAngForRollCvx)
-					   +"\n cvxRollClamp(4): "+fS(convexRollClamp,2)
-					   +"\n centrifDcm(5): "+fS(centrifugalDecmFactor,2)
-					   +"\n centrifIcm(6): "+fS(centrifugalIncmFactor,2)
-					   
-					   +"\n\n"+dbgMsg
-	);
-
-} //end update
-
 
 void State::fly(float pct)
 {
@@ -1075,13 +1081,13 @@ void State::fly(float pct)
 
 	// KEEPING BALL IN SCREEN: DIFFERENT APPROACH ///////////
 	{
-		if (newPos.x < 2 || newPos.x > SCRW - 2) {
-			ball.sP(newPos.x < 0 ? 2 : SCRW - 2, ball.gP().y);
+		if (newPos.x < 2 || newPos.x > scrw - 2) {
+			ball.sP(newPos.x < 0 ? 2 : scrw - 2, ball.gP().y);
 			ball.setDx(ball.dx() * -1);
 //			ball.setMag(ball.mag() * 1.3);
 		}
-		if (newPos.y > SCRH) {
-			ball.sP(ball.gP().x, SCRH);
+		if (newPos.y > scrh) {
+			ball.sP(ball.gP().x, scrh);
 			zeroOutVelocity();
 		}
 	}
@@ -1095,8 +1101,8 @@ void State::fly(float pct)
 	rect.left += 8;
 	rect.width -= 16;
 	if (rect.contains(ball.getPosition().x, ball.getPosition().y)) {
-		soundMap["ow"].play();
-		timedMgr->addEvent(2, [&](){ soundMap["crying"].play(); });
+		gSound("ow").play();
+		timedMgr->addEvent(2, [&](){ gSound("crying").play(); });
 	}
 	
 	/* Collision check with platforms */
@@ -1302,7 +1308,8 @@ void State::fly(float pct)
 					&& normCpt > 4)
 					key = "grassThump";
 			}
-			playSoundAtVolPct(soundMap[key], normCpt / .1);
+			/* Try to make the sound volume approximate the velocity of the ball */
+			playSoundAtVolPct(gSound(key), normCpt / .1);
 			if (!epsEquals(fractionRemaining, 0, .001))
 
 				//??ADD GRAVITY HERE to modify dir
@@ -1331,17 +1338,10 @@ void State::fly(float pct)
 	r.setFillColor(PURPLE);
 	drtDraw(r);
 	// //////////
-	
-	
 } // end fly()
-
-
-
-
 
 void State::roll(float pct, GroundSegment* segToIgnore)
 {
-	
 	if (pct < .98){rr.setFillColor(PURPLE);}// ////
 	else rr.setFillColor(ORANGE);// /////
 
@@ -1380,7 +1380,7 @@ void State::roll(float pct, GroundSegment* segToIgnore)
 //	if (hyp(inrPlusNorm) < ::muS * normCpt) { // DEBUG use global so can change value
 		zeroOutVelocity();
 		  
-//		dbgSkyPURPLE); // ////////
+//		dbgSky(PURPLE); // ////////
 		  
 		return;
 	}
@@ -1783,7 +1783,7 @@ void State::roll(float pct, GroundSegment* segToIgnore)
 					} // end ball rolls 180deg from old dir
 				} // end !rebound gets air
 				
-				playSoundAtVolPct(soundMap[ci.seg->surfaceType], xlatMag / .1f);
+				playSoundAtVolPct(gSound(ci.seg->surfaceType), xlatMag / .1f);
 				
 			} // end rebounding
 		} // end collision/transition with concave
@@ -1813,8 +1813,8 @@ void State::roll(float pct, GroundSegment* segToIgnore)
 
 	  //HANDLE EDGES OF SCREEN //////////////
 	{	  auto newPos = ball.gP();
-		if (newPos.x < 2 || newPos.x > SCRW - 2) {
-			ball.sP(newPos.x < 0 ? 1.5 : SCRW - 2.5, ball.gP().y);
+		if (newPos.x < 2 || newPos.x > scrw - 2) {
+			ball.sP(newPos.x < 0 ? 1.5 : scrw - 2.5, ball.gP().y);
 			ball.setDx(ball.dx() * -1);
 //			ball.setMag(ball.mag() * 1.3);
 			
@@ -1826,38 +1826,12 @@ void State::roll(float pct, GroundSegment* segToIgnore)
 //				ball.setDy(ball.dy() * 1.2);
 //			}
 		}
-		if (newPos.y > SCRH) {
-			ball.sP(ball.gP().x, SCRH - 1);
+		if (newPos.y > scrh) {
+			ball.sP(ball.gP().x, scrh - 1);
 			zeroOutVelocity();
 		}
 	}
 	// //////////////////
-	
-}
-
-
-void State::startNewShotTimer ()
-{
-	if (!timedMgr->gOn("canShoot"))
-		timedMgr->addEventIf("setCanShoot", 1.2, [&]() {
-			timedMgr->gSet("canShoot");
-			drtDraw(deh);
-		});
-}
-
-
-void State::ballInHole ()
-{
-	ballActive = false;
-	endRoll();
-	zeroOutVelocity();
-	inCrotch = false;
-	onCusp = false;
-	ball.sP(hole.ballLoc());
-	soundMap["ballInHole"].play();
-	timedMgr->addEvent(1.2, [&]() { soundMap["cheer"].play();});
-	timedMgr->addEvent(5, [&]() {
-		loadNextHole();	});
 }
 
 void State::endRoll()
@@ -1882,193 +1856,30 @@ void State::disableShooting ()
 	}
 }
 
-
-void State::assembleSprite (string fname)
+void State::startNewShotTimer ()
 {
-	RenderTexture rt, platRt, segRt;
-	TransformableVxArray va {LineStrip};
-	Texture tex;
-	Sprite spr, platSpr;
-
-	rt.create(SCRW, SCRH); // CHANGE if adding panning
-	platRt.create(SCRW, SCRH);
-	rt.clear(Color::Transparent);
-	for (auto& p : platforms) {
-		platRt.clear(Color::Transparent);
-		platRt.draw(p.va);
-		platRt.display();
-		ZImage zimg {platRt.getTexture().copyToImage()};
-		vecf startPtFl {p.segs[1].mid};
-		vecU startPt;
-		do {
-			startPtFl += toRect(1, p.segs[1].oppNormal);
-			startPt.x = (uint)startPtFl.x;
-			startPt.y = (uint)startPtFl.y;
-		}
-		while (!zimg.isBlank(zimg.getPixel(startPt)));
-		
-		if (p.fillInfo.type == PlatFillInfo::FillType::imagePixs) {
-			zimg.fillInFromImage(startPt, "resources/" + std::get<string>(p.fillInfo.arg) + ".png");
-		}
-		// more types like random sprite sprinkling
-		else { // FillType::colorDev
-			auto cdi = std::get<PlatFillInfo::ColorDevInfo>(p.fillInfo.arg);
-			zimg.fillInWithColor(startPt, cdi.c, cdi.dev);
-			zimg.blur(cdi.blurRepetitions);
-		}
-		
-		tex.loadFromImage(zimg);
-		platRt.draw(Sprite(tex));
-		
-		for (auto& seg : p.segs) {
-			auto ySize = txMap[seg.surfaceType].getSize().y;
-			auto yAboveOrigin = ySize - ballRadius;
-			float nextAng = bisectSmallest(seg.angle, seg.next->angle);
-			float prevAng = bisectSmallest(seg.angle, seg.prev->angle);
-			if (txMap.find(seg.surfaceType + "End") != txMap.end()) {
-				if (seg.next->surfaceType != seg.surfaceType)
-					nextAng = seg.angle;
-				if (seg.prev->surfaceType != seg.surfaceType)
-					prevAng = seg.angle;
-			}
-			
-			float trAng = prevAng + 90;
-			float brAng = prevAng + 270;
-			float tlAng = nextAng + 90;
-			float blAng = nextAng + 270;
-			
-			vecf tr = seg.start + pVec(ballRadius / max(.1f, absCos(trAng, seg.normal)), trAng);
-			vecf br = seg.start + pVec(yAboveOrigin / max(.1f, absCos(brAng, seg.oppNormal)), brAng);
-			vecf tl = seg.end + pVec(ballRadius / max(.1f, absCos(tlAng, seg.normal)), tlAng);
-			vecf bl = seg.end + pVec(yAboveOrigin / max(.1f, absCos(blAng, seg.oppNormal)), blAng);
-			
-			auto trdif = toPolar(tr - seg.start);
-			auto brdif = toPolar(br - seg.start);
-			auto tldif = toPolar(tl - seg.start);
-			auto bldif = toPolar(bl - seg.start);
-			
-			auto tr2 = seg.start + pVec(trdif.x, trdif.y - seg.angle);
-			auto br2 = seg.start + pVec(brdif.x, brdif.y - seg.angle);
-			auto tl2 = seg.start + pVec(tldif.x, tldif.y - seg.angle);
-			auto bl2 = seg.start + pVec(bldif.x, bldif.y - seg.angle);
-			
-			va.clear();
-			va.appendPtC(tr2, CHARCOAL);
-			va.appendPtC(br2, CHARCOAL);
-			va.appendPtC(bl2, CHARCOAL);
-			va.appendPtC(tl2, CHARCOAL);
-			va.appendPtC(tr2, CHARCOAL);
-			va.configure();
-			auto bounds = va.getBounds();
-			auto dif = vecf(-bounds.left, -bounds.top);
-			vecf ogn = seg.start - vecf(bounds.left, bounds.top);
-			va.move(dif);
-			
-			segRt.create(bounds.getSize().x, bounds.getSize().y);
-			segRt.clear(Color::Transparent);
-			segRt.draw(va);
-			segRt.display();
-			zimg = segRt.getTexture().copyToImage();
-			auto fillPtF = ogn + vecf(4, 0);
-			vecU fillPt = {(uint)fillPtF.x, (uint)fillPtF.y};
-			zimg.fillInWithColor(fillPt, CHARCOAL);
-			zimg.fillInFromImage(fillPt, "resources/" + seg.surfaceType + ".png");
-			tex.loadFromImage(zimg);
-			spr.setTexture(tex);
-			spr.setTextureRect(IntRect(0, 0, tex.getSize().x, tex.getSize().y));
-			spr.setOrigin(ogn);
-			spr.setPosition(seg.start);
-			spr.setRotation(seg.angle);
-			platRt.draw(spr);
-		}
-		/* Second pass to draw "end caps" where applicable */
-		for (auto& seg : p.segs) {
-			string endkey = seg.surfaceType + "End";
-			if (txMap.find(endkey) != txMap.end()) {
-				if (seg.next->surfaceType != seg.surfaceType) {
-					Sprite endspr(txMap[endkey]);
-					endspr.setOrigin(0, ballRadius);
-					endspr.setRotation(seg.angle);
-					endspr.setPosition(seg.end);
-					endspr.setScale(1, -1);
-					platRt.draw(endspr);
-				}
-				if (seg.prev->surfaceType != seg.surfaceType) {
-					Sprite endspr(txMap[endkey]);
-					endspr.setOrigin(0, ballRadius);
-					endspr.setRotation(seg.angle);
-					endspr.setPosition(seg.start);
-					endspr.setScale(-1, -1);
-					platRt.draw(endspr);
-				}
-			}
-		}
-		platRt.display();
-		// Use these two lines if dynamic platforms introduced
-//		p.tx = platRt.getTexture();
-//		p.s.setTexture(p.tx);
-		platSpr.setTexture(platRt.getTexture());
-		platSpr.setTextureRect(IntRect(0, 0, SCRW, SCRH));
-		rt.draw(platSpr);
-	}
-	rt.display();
-	rt.getTexture().copyToImage().saveToFile("resources/" + fname + ".png");
-	ofstream ofs { "levels/" + fname + ".txt", std::ios_base::app };
-	ofs << "\nSPRITE_CACHED\n";
-	ofs.close();
+	if (!timedMgr->gOn("canShoot"))
+		timedMgr->addEventIf("setCanShoot", 1.2, [&]() {
+			timedMgr->gSet("canShoot");
+			drtDraw(deh);
+		});
 }
 
-void State::loadAnimFrames()
+void State::ballInHole ()
 {
-	int orderNums[] = {2, 1, 0, -1, -2, -3, -4, -5, -6};
-	forNum(9) {
-		IntRect rect {62 * (i % 4), 53 * (i / 4), 62, 53};
-		swingFrames.emplace_back(rect, orderNums[i]);
-	}
+	ballActive = false;
+	endRoll();
+	zeroOutVelocity();
+	inCrotch = false;
+	onCusp = false;
+	ball.sP(hole.ballLoc());
+	gSound("ballInHole").play();
+	timedMgr->addEvent(1.2, [&]() { gSound("cheer").play();});
+	timedMgr->addEvent(5, [&]() {
+		loadNextHole();	});
 }
 
 
-
-const vector<pair<string, string>> State::fontList
-{
-	{ "Monaco.ttf", "debugFont" }
-	, { "Abadi MT Condensed Extra Bold", "flagFont"}
-	, { "YurineOverflow.otf", "menuTitle" }
-};
-
-const vector<pair<string, string>> State::soundList
-{
-	{ "golf.wav", "swing" },
-	{ "ballInHole.wav", "ballInHole" },
-	{ "crowdCheer.wav", "cheer" },
-	{ "putt.wav", "putt" }
-	, { "rOw.mp3", "ow" }
-//	, { "ow.mp3", "ow" }
-	, { "rCrying.mp3", "crying" }
-	
-	// Bounce-sound map keys have to match surfaceType
-	, { "metalClink1.wav", "metal" }
-	, { "golfBallBounce1.wav", "marble" }
-	, { "golfBallBounce1.wav", "brick" }
-	, { "golfBallBounce1.wav", "stones" }
-	, { "woodThunk1.wav", "logs" }
-	, { "grassSwish.wav", "grass" }
-	, { "grassSwish.wav", "rough" }
-	, { "ballThunk.wav", "puttgrass" }
-	, { "ballThunk.wav", "dirt" }
-	, { "ballThunk.wav", "sand" }
-	
-	, { "ballHitGrass.wav", "grassThump" }
-};
-
-vector<pair<string, string>> State::txList
-{
-	{ "bkgd.png", "bkgd" }
-	, { "golfball.png", "ball" }
-	, { "cloud.png", "cloud" }
-	, { "animSheet.png", "deh"}
-	, { "flag.png", "flag" }
-};
 
 vector<pair<string, string>> State::fillTypeList
 {
@@ -2127,6 +1938,6 @@ map<string, SurfacePhysics> State::physicsMap
 void State::dbgSky(Color c)
 {
 #ifdef DBG
-	gw->setRedrawColor(c);
+	app->setRedrawColor(c);
 #endif
 }

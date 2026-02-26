@@ -1,13 +1,58 @@
 @images
+bkgd.png	bkgd
+golfball.png	ball
+cloud.png		cloud
+animSheet.png	deh
+flag.png		flag
+hole.png		hole
 
+roughEnd.png	roughEnd
 
 #repeated
-#paneedge.png		edges		repeat
+rockwall.png	rockwall	repeat
+woodpostfill.png	woodpostfill	repeat
+marblefill.png	marblefill	repeat
+brickfill.png	brickfill	repeat
+dirtfill.png	dirtfill	repeat
+cratefill.png	cratefill	repeat
+
+grass.png	grass	repeat
+dirt.png	dirt	repeat
+brick.png	brick	repeat
+sand.png	sand	repeat
+marble.png	marble	repeat
+metal.png	metal	repeat
+puttgrass.png	puttgrass	repeat
+logs.png	logs	repeat
+stones.png	stones	repeat
+rough.png	rough	repeat
+
 
 @fonts
-Monaco.ttf		debug
-
+Monaco.ttf					debug
+YurineOverflow.otf			menuTitle
+RollingNoOne-ExtraBold.otf	flagFont
+RollingNoOne-ExtraBold.otf	toolButton
+							stats
 
 
 @sounds
+golf.wav		swing
+putt.wav		putt
+ballInHole.wav			ballInHole
+crowdCheer.wav			cheer
 
+metalClink1.wav		metal
+golfBallBounce1.wav		marble
+golfBallBounce1.wav		brick
+golfBallBounce1.wav		stones
+woodThunk1.wav		logs
+grassSwish.wav		grass
+grassSwish.wav		rough
+ballThunk.wav		puttgrass
+ballThunk.wav		dirt
+ballThunk.wav		sand
+ballHitGrass.wav	grassThump
+
+rOw.mp3	ow
+rCrying.mp3	crying
