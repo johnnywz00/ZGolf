@@ -16,14 +16,16 @@ bool State::handleTextEvent (Event& event)
 			|| event.type == Event::KeyPressed
 			|| event.type == Event::KeyReleased)) {
 		if (event.type == Event::TextEntered) {
-			if (event.text.unicode == 8)
-				if (iKP(LShift))
+			if (event.text.unicode == 8) {
+				if (isShiftPressed())
 					activeTbox->clear();
 				else activeTbox->deleteLastChar();
-				else if (event.text.unicode == 9) ; // Don't write the \t
-				else activeTbox->appendText(event.text.unicode);
+			}
+			else if (event.text.unicode == 9) ; // Don't write the \t
+			else activeTbox->appendText(event.text.unicode);
 		}
-		if (event.type == Event::KeyPressed && (event.key.code == Keyboard::Escape || event.key.code == Keyboard::Enter)) {
+		if (event.type == Event::KeyPressed
+			&& (event.key.code == Keyboard::Escape || event.key.code == Keyboard::Enter)) {
 			if (activeTbox == &fillInfoTbox) {
 				curPlat->fillTboxStr = fillInfoTbox.boxTxt.getString();
 			}
@@ -78,13 +80,13 @@ void State::loadToolbarButtons()
 		toolWin.toolButtons.insert({key, tb});
 	}
 	toolWin.totalRect.setSize({toolWin.totalRect.getSize().x, tbY - toolWin.totalRect.getPosition().y});
-	toolWin.move({30, 30}); // Initialize button positions
+	toolWin.move({30, 30}); // Initializes button positions
 }
 
 void State::loadPlatformData (string fname)
 {
 	curPlatforms.clear();
-	ifstream fs {"levels/" + fname + ".txt"};
+	ifstream fs {resourcePath() / "levels" / (fname + ".txt")};
 	string line;
 	EditorPlatform ep;
 	
@@ -122,7 +124,6 @@ void State::loadPlatformData (string fname)
 				}
 			}
 			//			ep.fillInfo = pfi;
-			
 			
 			ep.isComplete = true;
 			curPlatforms.push_back(ep);
@@ -173,18 +174,23 @@ void State::loadPlatformData (string fname)
 void State::designKeyPress (Keyboard::Key k)
 {
 	switch(k) {
+			
 		case Keyboard::X:
 			clearMap();
 			break;
+		
 		case Keyboard::U:
 			finishGround(curPlat, !curPlat->isComplete);
 			break;
+		
 		case Keyboard::J:
 			saveHole();
 			break;
+		
 		case Keyboard::Backspace:
 			maybeEraseSelectedVert();
 			break;
+		
 		case Keyboard::Space:
 			if (curTool != "select") {
 				activateSelectButton();
@@ -209,7 +215,6 @@ void State::designKeyPress (Keyboard::Key k)
 
 void State::designClick (int x, int y)
 {
-	
 	bool clickedTool = false;
 	auto clickTool = [&](string str, RectangleShape& but) {
 		curTool = str;
@@ -308,7 +313,7 @@ void State::designClick (int x, int y)
 						}
 						else if (curTool == "select") {
 							gClicked = &vert;
-							if (iKP(LShift)) {
+							if (isShiftPressed()) {
 								if (gHighlighted) {
 									bool wasHighlighted = gHighlighted == gClicked;
 									gHighlighted->isHighlighted = false;
@@ -338,7 +343,7 @@ void State::designClick (int x, int y)
 					for (auto& c : vert.controls) {
 						if (c.s.gGB().contains(x, y)) {
 							setCurPlat(&p);
-							if (iKP(LShift)) {
+							if (isShiftPressed()) {
 								vert.controls.erase(p.verts[i].controls.begin() + indexOfRef(p.verts[i].controls, c));
 								p.recomputeSpline();
 							}
@@ -366,22 +371,21 @@ void State::designClick (int x, int y)
 			// if scheme, v.txPtrUps = scheme.ups
 			
 			if (gHighlighted) {
-				if (iKP(LShift) && gHighlighted->controls.size() < 2) {
+				if (isShiftPressed() && gHighlighted->controls.size() < 2) {
 					v.isControl = true;
 					v.parent = gHighlighted;
 					v.s.setFillColor(Color::Green);
 					gHighlighted->controls.push_back(v);
 				}
-				else if (!iKP(LShift))
+				else if (!isShiftPressed())
 					curPlat->verts.insert(curPlat->verts.begin() + indexOfRef(curPlat->verts, *gHighlighted) + 1, v);
 			}
-			else if (!iKP(LShift))
+			else if (!isShiftPressed())
 				curPlat->verts.push_back(v);
 			
 			updateHoleAndTee(curPlat->recomputeSpline());
 		}
 	}
-	
 }
 
 void State::designUpdate ()
@@ -645,7 +649,7 @@ bool State::finishGround (EditorPlatform* plat, bool makeNew)
 
 void State::clearMap ()
 {
-	std::fstream fs{"levels/platforms.txt", std::ios_base::out|std::ios_base::trunc};
+	std::fstream fs{resourcePath() / "levels" / "platforms.txt", std::ios_base::out|std::ios_base::trunc};
 	fs.close();
 	curPlatforms.clear();
 	gClicked = nullptr;
@@ -710,7 +714,7 @@ void State::setCurPlat (EditorPlatform* ep)
 
 void State::saveHole ()
 {
-	string fname = "levels/" + filenameTbox.boxTxt.getString() + ".txt";
+	string fname = (resourcePath() / "levels" / string(filenameTbox.boxTxt.getString() + ".txt")).string();
 	ofstream fs {fname, std::ios_base::trunc};
 	for (auto& ep : curPlatforms) {
 		if (!finishGround(&ep, false))

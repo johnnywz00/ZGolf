@@ -33,7 +33,7 @@ Monaco.ttf					debug
 YurineOverflow.otf			menuTitle
 RollingNoOne-ExtraBold.otf	flagFont
 RollingNoOne-ExtraBold.otf	toolButton
-							stats
+DSHolzschrift.otf			stats
 
 
 @sounds

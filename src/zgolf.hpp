@@ -157,7 +157,8 @@ public:
 	vecI				mouseVec
 						, oldMouse
 	;
-	
+	float				ballRadius;
+
 	bool pauseAfterDraw = false;	// DEBUG
 	
 private:
@@ -267,7 +268,6 @@ private:
 	Mode        			mode = menu;
 
 	static vector<pair<string, string>> 	surfaceTypeList;
-	static vector<pair<string, string>> 	surfaceEndList;
 	static vector<pair<string, string>> 	fillTypeList;
 	static map<string, SurfacePhysics>		physicsMap;
 	
@@ -278,7 +278,9 @@ private:
 /* Menu members */
 	Sprite					bkgdSpr;
 	vector<CourseButton>	courseButtons;
-	Text					menuTitle;
+	Text					menuTitle
+							, signatureTxt
+	;
 
 /* Play mode members */
 	Sprite                  deh;
@@ -307,7 +309,6 @@ private:
 	float                   cloudVels[10];
 	float       			power = 0
                 			, angle = 315
-							, ballRadius
     ;
 	int						curFrameNum; //@kludgeAnim
     bool					ballActive

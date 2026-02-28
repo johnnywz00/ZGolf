@@ -43,7 +43,8 @@ GroundSegment::GroundSegment (const vecF& s, const vecF& e, float ballRadius)
 	collisionCheckLine = LineSegment(lseg.pt1 + pVec(ballRadius, normal), lseg.pt2 + pVec(ballRadius, normal));
 	
 	id = nextSegID++;
-	
+
+// DEBUG //
 	txt = Text();
 	//		txt.setString(fS(angle, 1));
 	txt.setString(tS(id));
@@ -68,7 +69,7 @@ void GroundSegment::initSprite (const Texture& tx)
 	spr.setTextureRect(IntRect(
 							   0, 0, length,
 							   max( int(spr.getTexture()->getSize().y), 7)));
-	spr.setOrigin(0, spr.gLB().height - 4.5); // 4.5 is ballRadius
+	spr.setOrigin(0, spr.gLB().height - State::getSelf()->ballRadius);
 	spr.sP(start);
 	spr.sRot(angle);
 }
