@@ -5,7 +5,7 @@
 <img width="1728" height="1117" alt="Screenshot 2026-02-12 at 4 58 06 PM" src="https://github.com/user-attachments/assets/23c4faed-b039-4cfe-b22a-12f822cf847e" />
 
 ### ABOUT THE PROJECT
-<span style="color:green">ZGolf</span> is a project that was a kind of natural outcome of carrying previous experiments to the next level. It integrates the projectile physics of Parasheep, the sphere collisions of LetterBalls, and the sprite collision checking of Hopscotch, and adds new levels of sophistication to the whole. Even so, the first incarnation of this game came relatively early in my programming career. Years later, the physics got a major overhaul, and the editor gained a lot more functionality.
+<font color="green">ZGolf</font> is a project that was a kind of natural outcome of carrying previous experiments to the next level. It integrates the projectile physics of Parasheep, the sphere collisions of LetterBalls, and the sprite collision checking of Hopscotch, and adds new levels of sophistication to the whole. Even so, the first incarnation of this game came relatively early in my programming career. Years later, the physics got a major overhaul, and the editor gained a lot more functionality.
 
 The game's platforms are made with curving terrain which dictates how the ball bounces or rolls. There are different surface types (deep grass, short grass, sand...), which dictate how far the ball will roll, how much bounce will be absorbed, etc. New holes can be created in an editor, and sets of holes can be grouped together into courses. 
 
