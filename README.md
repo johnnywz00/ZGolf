@@ -14,14 +14,17 @@ The game's platforms are made with curving terrain which dictates how the ball b
 Certain features warrant a disclaimer until I have time to reimplement; among them:
 <details>
 <summary>The list...</summary>
+
 * Play mode and Design mode should be separate game states with their own members and methods
 * The limited animation was a quick and dirty measure for the kids' sake (marked as @kludgeAnim in the code): a more robust and generalized animation system is in the plans
 * The physics work pretty well (and the casual tester/player may come away without noticing anything amiss,) but I haven't gotten to the end of troubleshooting them, and depending on the terrain I create, it is still possible to trigger
+
 	* stack overflow
 	* ball "falling" through the ground
 	* ball "freezing" in a crotch between two ground segments
 	* ball disappearing on account of being assigned a position of INFINITY or NAN
 	* ball is supposed to always come to rest by reason of static friction but there are times it "creeps" (probably because of the faux centrifugal force, see below)
+	
 * The Line classes need to be reconfigured to calculate with respect to y instead of x when lines have a slope greater than 1, to avoid inaccuracies caused by enormous slope values when lines are close to vertical. 
 * I'm still in the experimentation phase of how to model centrifugal force, re: allowing putting around a loop. It's possible that I just need to keep tweaking the numerical values I'm using, but it's also possible that my current approach isn't going to produce wholly satisfactory results. I'm trying to model the ball "sticking" to an upside down surface when it has enough momentum, but it has been causing the ball to unrealistically "dig in" too hard and slow down elsewhere. 
 </details>
