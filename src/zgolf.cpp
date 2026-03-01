@@ -723,12 +723,12 @@ void State::assembleSprite (string fname)
 	Sprite spr, platSpr;
 	
 	// Troubleshooting Windows crash
-	ofstream errLog { "errlog.tx", std::ios_base::app};
+	ofstream errLog { "errlog.txt", std::ios_base::app};
 	errLog << "Log created: entering `try`" << endl;
 	try {
 		vecF rtSz {2200, 1800};
 		if (curCourse && curCourse->curHole)
-			rtSz = curCourse->curHole->viewSize;
+			rtSz = curCourse->curHole->viewSize + vecF(100, 100);
 		rt.create(rtSz.x, rtSz.y); // CHANGE if adding panning
 		platRt.create(rtSz.x, rtSz.y);
 		rt.clear(Color::Transparent);
@@ -740,6 +740,7 @@ void State::assembleSprite (string fname)
 			/* First draw an outline of the platform */
 			platRt.draw(p.va);
 			platRt.display();
+			errLog << "743" << endl;
 			ZImage zimg {platRt.getTexture().copyToImage()};
 			/* Find a point that's inside the platform bounds */
 			vecf startPtFl {p.segs[1].mid};
@@ -750,6 +751,7 @@ void State::assembleSprite (string fname)
 				startPt.y = (uint)startPtFl.y;
 			}
 			while (!zimg.isBlank(zimg.getPixel(startPt)));
+			errLog << "754" << endl;
 			/* Use "fill bucket" algorithm to color in the platform */
 			if (p.fillInfo.type == PlatFillInfo::FillType::imagePixs) {
 				zimg.fillInFromImage(startPt, (resourcePath() / "images" / (std::get<string>(p.fillInfo.arg) + ".png")).string());
@@ -760,6 +762,7 @@ void State::assembleSprite (string fname)
 				zimg.fillInWithColor(startPt, cdi.c, cdi.dev);
 				zimg.blur(cdi.blurRepetitions);
 			}
+			errLog << "765" << endl;
 			
 			tex.loadFromImage(zimg);
 			platRt.draw(Sprite(tex));
