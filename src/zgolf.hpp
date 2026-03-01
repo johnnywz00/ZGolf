@@ -1,6 +1,8 @@
 
 /*
+ -why is gentle curving putt terrain acting like invisible (parfour3 at top)
  -shouldn't have followthrough animation if short shot and deh moved to new pos
+ -deh moves to ball when it zeroes out going up a slope and coming back down, also just brushing a ceiling at the top of an arc
 
  -FRICTION CREEP: add an angle threshold to each surface type where the ball won't move if it zeroed out velocity on shallow enough slant  (or,  fixing centrifugal may fix this, pretty certain FrictionSandbox had no creep)
  -Disregard all centrifugal calculations unless xlatdir exceeds speed threshold?
