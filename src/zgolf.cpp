@@ -722,150 +722,173 @@ void State::assembleSprite (string fname)
 	Texture tex;
 	Sprite spr, platSpr;
 	
-	vecF rtSz {2200, 1800};
-	if (curCourse && curCourse->curHole)
-		rtSz = curCourse->curHole->viewSize;
-	rt.create(rtSz.x, rtSz.y); // CHANGE if adding panning
-	platRt.create(rtSz.x, rtSz.y);
-	rt.clear(Color::Transparent);
-	
-	for (auto& p : platforms) {
-		platRt.clear(Color::Transparent);
-		/* First draw an outline of the platform */
-		platRt.draw(p.va);
-		platRt.display();
-		ZImage zimg {platRt.getTexture().copyToImage()};
-		/* Find a point that's inside the platform bounds */
-		vecf startPtFl {p.segs[1].mid};
-		vecU startPt;
-		do {
-			startPtFl += toRect(1, p.segs[1].oppNormal);
-			startPt.x = (uint)startPtFl.x;
-			startPt.y = (uint)startPtFl.y;
-		}
-		while (!zimg.isBlank(zimg.getPixel(startPt)));
-		/* Use "fill bucket" algorithm to color in the platform */
-		if (p.fillInfo.type == PlatFillInfo::FillType::imagePixs) {
-			zimg.fillInFromImage(startPt, (resourcePath() / "images" / (std::get<string>(p.fillInfo.arg) + ".png")).string());
-		}
-		// more types like random sprite sprinkling
-		else { // FillType::colorDev
-			auto cdi = std::get<PlatFillInfo::ColorDevInfo>(p.fillInfo.arg);
-			zimg.fillInWithColor(startPt, cdi.c, cdi.dev);
-			zimg.blur(cdi.blurRepetitions);
-		}
+	// Troubleshooting Windows crash
+	ofstream errLog { "errlog.tx", std::ios_base::app};
+	errLog << "Log created: entering `try`" << endl;
+	try {
+		vecF rtSz {2200, 1800};
+		if (curCourse && curCourse->curHole)
+			rtSz = curCourse->curHole->viewSize;
+		rt.create(rtSz.x, rtSz.y); // CHANGE if adding panning
+		platRt.create(rtSz.x, rtSz.y);
+		rt.clear(Color::Transparent);
 		
-		tex.loadFromImage(zimg);
-		platRt.draw(Sprite(tex));
-		
-		/* Then draw the surface segments over and around the platform body */
-		for (auto& seg : p.segs) {
-			/* Most surface types we'll just bisect between neighboring
-			 * segments, but some will use an "end cap"
-			 */
-			auto ySize = gTexture(seg.surfaceType).getSize().y;
-			auto yAboveOrigin = ySize - ballRadius;
-			float nextAng = bisectSmallest(seg.angle, seg.next->angle);
-			float prevAng = bisectSmallest(seg.angle, seg.prev->angle);
-			if (Resources::texExists(seg.surfaceType + "End")) {
-				if (seg.next->surfaceType != seg.surfaceType)
-					nextAng = seg.angle;
-				if (seg.prev->surfaceType != seg.surfaceType)
-					prevAng = seg.angle;
+		errLog << "RenTexs created, entering platform loop" << endl;
+		static int once = 0;
+		for (auto& p : platforms) {
+			platRt.clear(Color::Transparent);
+			/* First draw an outline of the platform */
+			platRt.draw(p.va);
+			platRt.display();
+			ZImage zimg {platRt.getTexture().copyToImage()};
+			/* Find a point that's inside the platform bounds */
+			vecf startPtFl {p.segs[1].mid};
+			vecU startPt;
+			do {
+				startPtFl += toRect(1, p.segs[1].oppNormal);
+				startPt.x = (uint)startPtFl.x;
+				startPt.y = (uint)startPtFl.y;
+			}
+			while (!zimg.isBlank(zimg.getPixel(startPt)));
+			/* Use "fill bucket" algorithm to color in the platform */
+			if (p.fillInfo.type == PlatFillInfo::FillType::imagePixs) {
+				zimg.fillInFromImage(startPt, (resourcePath() / "images" / (std::get<string>(p.fillInfo.arg) + ".png")).string());
+			}
+			// more types like random sprite sprinkling
+			else { // FillType::colorDev
+				auto cdi = std::get<PlatFillInfo::ColorDevInfo>(p.fillInfo.arg);
+				zimg.fillInWithColor(startPt, cdi.c, cdi.dev);
+				zimg.blur(cdi.blurRepetitions);
 			}
 			
-		/* Lots of work and calculations to get the bisections right;
-		 * ultimately we have to create a VertexArray of lines that
-		 * outline our segment with each end correctly bisected with
-		 * respect to its neighbor: then using ZImage we first fill
-		 * that in solid and finally map the appropriate surface
-		 * texture pixels to only those pixels which have been filled
-		 * in solid.
-		 */
-			float trAng = prevAng + 90;
-			float brAng = prevAng + 270;
-			float tlAng = nextAng + 90;
-			float blAng = nextAng + 270;
-			
-			vecf tr = seg.start + pVec(ballRadius / max(.1f, absCos(trAng, seg.normal)), trAng);
-			vecf br = seg.start + pVec(yAboveOrigin / max(.1f, absCos(brAng, seg.oppNormal)), brAng);
-			vecf tl = seg.end + pVec(ballRadius / max(.1f, absCos(tlAng, seg.normal)), tlAng);
-			vecf bl = seg.end + pVec(yAboveOrigin / max(.1f, absCos(blAng, seg.oppNormal)), blAng);
-			
-			auto trdif = toPolar(tr - seg.start);
-			auto brdif = toPolar(br - seg.start);
-			auto tldif = toPolar(tl - seg.start);
-			auto bldif = toPolar(bl - seg.start);
-			
-			auto tr2 = seg.start + pVec(trdif.x, trdif.y - seg.angle);
-			auto br2 = seg.start + pVec(brdif.x, brdif.y - seg.angle);
-			auto tl2 = seg.start + pVec(tldif.x, tldif.y - seg.angle);
-			auto bl2 = seg.start + pVec(bldif.x, bldif.y - seg.angle);
-			
-			va.clear();
-			va.appendPtC(tr2, CHARCOAL);
-			va.appendPtC(br2, CHARCOAL);
-			va.appendPtC(bl2, CHARCOAL);
-			va.appendPtC(tl2, CHARCOAL);
-			va.appendPtC(tr2, CHARCOAL);
-			va.configure();
-			auto bounds = va.getBounds();
-			auto dif = vecf(-bounds.left, -bounds.top);
-			vecf ogn = seg.start - vecf(bounds.left, bounds.top);
-			va.move(dif);
-			
-			segRt.create(bounds.getSize().x, bounds.getSize().y);
-			segRt.clear(Color::Transparent);
-			segRt.draw(va);
-			segRt.display();
-			zimg = segRt.getTexture().copyToImage();
-			auto fillPtF = ogn + vecf(4, 0);
-			vecU fillPt = {(uint)fillPtF.x, (uint)fillPtF.y};
-			zimg.fillInWithColor(fillPt, CHARCOAL);
-			zimg.fillInFromImage(fillPt, (resourcePath() / "images" / (seg.surfaceType + ".png")).string());
 			tex.loadFromImage(zimg);
-			spr.setTexture(tex);
-			spr.setTextureRect(IntRect(0, 0, tex.getSize().x, tex.getSize().y));
-			spr.setOrigin(ogn);
-			spr.setPosition(seg.start);
-			spr.setRotation(seg.angle);
-			platRt.draw(spr);
-		}
-		/* Second pass to draw "end caps" where applicable */
-		for (auto& seg : p.segs) {
-			string endkey = seg.surfaceType + "End";
-			if (Resources::texExists(endkey)) {
-				if (seg.next->surfaceType != seg.surfaceType) {
-					Sprite endspr(gTexture(endkey));
-					endspr.setOrigin(0, ballRadius);
-					endspr.setRotation(seg.angle);
-					endspr.setPosition(seg.end);
-					endspr.setScale(1, -1);
-					platRt.draw(endspr);
+			platRt.draw(Sprite(tex));
+			errLog << "Entering first seg loop" << endl;
+			
+			/* Then draw the surface segments over and around the platform body */
+			for (auto& seg : p.segs) {
+				/* Most surface types we'll just bisect between neighboring
+				 * segments, but some will use an "end cap"
+				 */
+				auto ySize = gTexture(seg.surfaceType).getSize().y;
+				auto yAboveOrigin = ySize - ballRadius;
+				float nextAng = bisectSmallest(seg.angle, seg.next->angle);
+				float prevAng = bisectSmallest(seg.angle, seg.prev->angle);
+				if (Resources::texExists(seg.surfaceType + "End")) {
+					if (seg.next->surfaceType != seg.surfaceType)
+						nextAng = seg.angle;
+					if (seg.prev->surfaceType != seg.surfaceType)
+						prevAng = seg.angle;
 				}
-				if (seg.prev->surfaceType != seg.surfaceType) {
-					Sprite endspr(gTexture(endkey));
-					endspr.setOrigin(0, ballRadius);
-					endspr.setRotation(seg.angle);
-					endspr.setPosition(seg.start);
-					endspr.setScale(-1, -1);
-					platRt.draw(endspr);
+				
+				/* Lots of work and calculations to get the bisections right;
+				 * ultimately we have to create a VertexArray of lines that
+				 * outline our segment with each end correctly bisected with
+				 * respect to its neighbor: then using ZImage we first fill
+				 * that in solid and finally map the appropriate surface
+				 * texture pixels to only those pixels which have been filled
+				 * in solid.
+				 */
+				float trAng = prevAng + 90;
+				float brAng = prevAng + 270;
+				float tlAng = nextAng + 90;
+				float blAng = nextAng + 270;
+				
+				vecf tr = seg.start + pVec(ballRadius / max(.1f, absCos(trAng, seg.normal)), trAng);
+				vecf br = seg.start + pVec(yAboveOrigin / max(.1f, absCos(brAng, seg.oppNormal)), brAng);
+				vecf tl = seg.end + pVec(ballRadius / max(.1f, absCos(tlAng, seg.normal)), tlAng);
+				vecf bl = seg.end + pVec(yAboveOrigin / max(.1f, absCos(blAng, seg.oppNormal)), blAng);
+				
+				auto trdif = toPolar(tr - seg.start);
+				auto brdif = toPolar(br - seg.start);
+				auto tldif = toPolar(tl - seg.start);
+				auto bldif = toPolar(bl - seg.start);
+				
+				auto tr2 = seg.start + pVec(trdif.x, trdif.y - seg.angle);
+				auto br2 = seg.start + pVec(brdif.x, brdif.y - seg.angle);
+				auto tl2 = seg.start + pVec(tldif.x, tldif.y - seg.angle);
+				auto bl2 = seg.start + pVec(bldif.x, bldif.y - seg.angle);
+				
+				va.clear();
+				va.appendPtC(tr2, CHARCOAL);
+				va.appendPtC(br2, CHARCOAL);
+				va.appendPtC(bl2, CHARCOAL);
+				va.appendPtC(tl2, CHARCOAL);
+				va.appendPtC(tr2, CHARCOAL);
+				va.configure();
+				auto bounds = va.getBounds();
+				auto dif = vecf(-bounds.left, -bounds.top);
+				vecf ogn = seg.start - vecf(bounds.left, bounds.top);
+				va.move(dif);
+				
+				segRt.create(bounds.getSize().x, bounds.getSize().y);
+				segRt.clear(Color::Transparent);
+				segRt.draw(va);
+				segRt.display();
+				zimg = segRt.getTexture().copyToImage();
+				auto fillPtF = ogn + vecf(4, 0);
+				vecU fillPt = {(uint)fillPtF.x, (uint)fillPtF.y};
+				zimg.fillInWithColor(fillPt, CHARCOAL);
+				zimg.fillInFromImage(fillPt, (resourcePath() / "images" / (seg.surfaceType + ".png")).string());
+				tex.loadFromImage(zimg);
+				spr.setTexture(tex);
+				spr.setTextureRect(IntRect(0, 0, tex.getSize().x, tex.getSize().y));
+				spr.setOrigin(ogn);
+				spr.setPosition(seg.start);
+				spr.setRotation(seg.angle);
+				platRt.draw(spr);
+			}
+			
+			errLog << "Entering second (end cap) seg loop" << endl;
+			/* Second pass to draw "end caps" where applicable */
+			for (auto& seg : p.segs) {
+				string endkey = seg.surfaceType + "End";
+				if (Resources::texExists(endkey)) {
+					if (seg.next->surfaceType != seg.surfaceType) {
+						Sprite endspr(gTexture(endkey));
+						endspr.setOrigin(0, ballRadius);
+						endspr.setRotation(seg.angle);
+						endspr.setPosition(seg.end);
+						endspr.setScale(1, -1);
+						platRt.draw(endspr);
+					}
+					if (seg.prev->surfaceType != seg.surfaceType) {
+						Sprite endspr(gTexture(endkey));
+						endspr.setOrigin(0, ballRadius);
+						endspr.setRotation(seg.angle);
+						endspr.setPosition(seg.start);
+						endspr.setScale(-1, -1);
+						platRt.draw(endspr);
+					}
 				}
 			}
+			platRt.display();
+			// Use these two lines if dynamic platforms introduced
+			//		p.tx = platRt.getTexture();
+			//		p.s.setTexture(p.tx);
+			platSpr.setTexture(platRt.getTexture());
+			platSpr.setTextureRect(IntRect(0, 0, rtSz.x, rtSz.y));
+			rt.draw(platSpr);
+			++once; // / ////
 		}
-		platRt.display();
-		// Use these two lines if dynamic platforms introduced
-		//		p.tx = platRt.getTexture();
-		//		p.s.setTexture(p.tx);
-		platSpr.setTexture(platRt.getTexture());
-		platSpr.setTextureRect(IntRect(0, 0, rtSz.x, rtSz.y));
-		rt.draw(platSpr);
+		errLog << "Exited platform loop" << endl;
+		rt.display();
+		rt.getTexture().copyToImage().saveToFile((resourcePath() / "images" / "levelSprites" / (fname + ".png")).string());
+		ofstream ofs { resourcePath() / "levels" / (fname + ".txt"), std::ios_base::app };
+		ofs << "\nSPRITE_CACHED\n";
+		ofs.close();
 	}
-	rt.display();
-	rt.getTexture().copyToImage().saveToFile((resourcePath() / "images" / "levelSprites" / (fname + ".png")).string());
-	ofstream ofs { resourcePath() / "levels" / (fname + ".txt"), std::ios_base::app };
-	ofs << "\nSPRITE_CACHED\n";
-	ofs.close();
+	catch (std::exception& e) {
+		errLog << "Caught exception: " << e.what() << endl;
+		if (errLog.is_open()) errLog.close();
+		mode = menu;
+	}
+	catch (...) {
+		errLog << "Unknown exception" << endl;
+		if (errLog.is_open()) errLog.close();
+		mode = menu;
+	}
+	if (errLog.is_open()) errLog.close();
 }
 
 void State::playUpdate (const Time& time)
