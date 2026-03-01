@@ -10,6 +10,7 @@
  =============
  -multiple threads for blur(), fillIn (but heard that pixel work isn't good to divide between threads?)
  -do screen edges properly
+ -add zoning of ground segments (put all segs into zones, don't analyze per platform) to allow game to run on slow computers? (chromebook)
  
  -when friction creeping ball (and now deh bc staying aligned with it) sometimes disappear (when tab dropping the ball again, ball is traveling at high rate and the sprite is solid black colored)
  -using club a foot from hole, hitting mostly level, when ball got to hole it fell through ground instead of going in hole

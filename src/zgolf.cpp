@@ -41,7 +41,7 @@ void State::onCreate ()
 	
 	menuInstr = Text(
 					 "Hold Space to shoot\nHold Shift and Space to putt\n"
-					 "Arrow keys to pan the view\n"
+//					 "Arrow keys to pan the view\n"
 					 "Aim with mouse or < > keys\n"
 					 "\t(Shift speeds up)\n"
 					 "N for next hole\n"
@@ -103,13 +103,14 @@ void State::onCreate ()
 					
 					" \nClicking in the editor space:\n"
 					"\t- Creates a new vertex connected to the last point of the current platform\n"
+					"\t\t(Must draw the platform outline in counterclockwise direction!)\n"
 					"\t- If a vertex is highlighted, creates a new vertex inserted directly \n"
 					"\t\tafter the highlighted one\n"
 					"\t- If a vertex is highlighted and Shift is pressed, creates a control \n"
 					"\t\tpoint for that vertex (two max)\n"
 					" \nThe editor doesn't yet have course-awareness: after saving a hole\n"
 					"\tit can be added to a course manually by opening the file courses.txt"
-					"\n \n                      (Click or press ? to hide)",
+					"\n \n                                   (Click or press ? to hide)",
 					gFont("instr"), 18
 					);
 	centerOrigin(instrTxt);
@@ -690,33 +691,27 @@ void State::menuClick (int x, int y)
 void State::switchToPlay ()
 {	
 	mode = play;
-	try {
-		string arg = filenameTbox.boxTxt.getString();
-		if (arg.empty()) {
-			arg = "platforms";
-			ofstream os {resourcePath() / "levels" / (arg + ".txt"), std::ios_base::app};
-			os.close();
-		}
-		if (holeWhenEnteringMode
-			&& arg == holeWhenEnteringMode->platformsFile) {
-			loadHole(*holeWhenEnteringMode);
-		}
-		// Editor doesn't have course recognition yet; put a new hole
-		// in the default course
-		else {
-			CourseHole chl;
-			chl.platformsFile = arg;
-			chl.par = 4;
-			chl.holeNumber = int(courses[0].holes.size() + 1);
-			courses[0].holes.push_back(chl);
-			loadHole(courses[0].holes.back());
-			curCourse = &courses[0];
-			curCourse->curHole = &curCourse->holes.back();
-		}
+	string arg = filenameTbox.boxTxt.getString();
+	if (arg.empty()) {
+		arg = "platforms";
+		ofstream os {resourcePath() / "levels" / (arg + ".txt"), std::ios_base::app};
+		os.close();
 	}
-	catch (std::exception& e) {
-		ofstream errFile { "errlog.txt", std::ios_base::app};
-		cerr << LocalTime().ascTime() << " Caught exception: " << e.what() << endl;
+	if (holeWhenEnteringMode
+		&& arg == holeWhenEnteringMode->platformsFile) {
+		loadHole(*holeWhenEnteringMode);
+	}
+	// Editor doesn't have course recognition yet; put a new hole
+	// in the default course
+	else {
+		CourseHole chl;
+		chl.platformsFile = arg;
+		chl.par = 4;
+		chl.holeNumber = int(courses[0].holes.size() + 1);
+		curCourse = &courses[0];
+		curCourse->holes.push_back(chl);
+		curCourse->curHole = &curCourse->holes.back();
+		loadHole(*(curCourse->curHole));
 	}
 }
 
@@ -727,8 +722,11 @@ void State::assembleSprite (string fname)
 	Texture tex;
 	Sprite spr, platSpr;
 	
-	rt.create(scrw, scrh); // CHANGE if adding panning
-	platRt.create(scrw, scrh);
+	vecF rtSz {2200, 1800};
+	if (curCourse && curCourse->curHole)
+		rtSz = curCourse->curHole->viewSize;
+	rt.create(rtSz.x, rtSz.y); // CHANGE if adding panning
+	platRt.create(rtSz.x, rtSz.y);
 	rt.clear(Color::Transparent);
 	
 	for (auto& p : platforms) {
@@ -860,7 +858,7 @@ void State::assembleSprite (string fname)
 		//		p.tx = platRt.getTexture();
 		//		p.s.setTexture(p.tx);
 		platSpr.setTexture(platRt.getTexture());
-		platSpr.setTextureRect(IntRect(0, 0, scrw, scrh));
+		platSpr.setTextureRect(IntRect(0, 0, rtSz.x, rtSz.y));
 		rt.draw(platSpr);
 	}
 	rt.display();
@@ -963,7 +961,10 @@ void State::playUpdate (const Time& time)
 
 void State::maybePanView ()
 {
-	// Panning the screen: not useful till editor supports
+	// Disabling until working out quirks: uncomment instructions line
+	// if reenabling
+	/*
+	 // Panning the screen: not useful till editor supports
 	View vw = rwin->getView();
 	auto oldPos = vw.getCenter();
 	auto leftLimit = curCourse->curHole->viewSize.x / 2;
@@ -994,6 +995,7 @@ void State::maybePanView ()
 		statsTxt.move(dif);
 		rwin->setView(vw);
 	}
+	*/
 }
 
 void State::handleAim ()
@@ -2128,7 +2130,7 @@ vector<pair<string, string>> State::surfaceTypeList
 map<string, SurfacePhysics> State::physicsMap
 {
 	{ "grass", {"grass", .1, .1, .45, 20}}
-	, { "puttgrass", {"puttgrass", .06, .06, .38, 20}}
+	, { "puttgrass", {"puttgrass", .06, .06, .38, 20, true}}
 	, { "rough", {"rough", .3, .4, .65, 18}}
 	, { "sand", {"sand", .4, .5, .85, 12}}
 	, { "dirt", {"dirt", .35, .45, .75, 14}}
