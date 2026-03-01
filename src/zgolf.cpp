@@ -88,6 +88,7 @@ void State::onCreate ()
 					
 					" \nClick on existing vertex:\n"
 					"\t- With select tool, begin to drag vertex for repositioning\n"
+					"\t\tWith Command/Windows key pressed, drags all vertices of platform\n"
 					"\t- if Shift pressed, highlight or unhighlight the vertex (vert must be\n"
 					"\t\thighlighted to create control point for it)\n"
 					"\t- With hole button, places hole on the corresponding ground segment\n"
@@ -114,6 +115,11 @@ void State::onCreate ()
 	centerOrigin(instrTxt);
 	instrTxt.setPosition(scrcx, scrcy);
 	instrTxt.setFillColor(CHARCOAL);
+	auto ht = instrTxt.gGB().height;
+	if (ht > scrh - 10) {
+		auto factor = scrh / ht;
+		instrTxt.setScale(factor, factor);
+	}
 	instrRect.setSize({instrTxt.gLB().width + 20, instrTxt.gLB().height + 20});
 	centerOrigin(instrRect);
 	instrRect.setPosition(scrcx, scrcy);
@@ -277,30 +283,30 @@ void State::onKeyRelease (Keyboard::Key) { } // no use yet
 
 void State::update (const Time& time)
 {
-	{ //DEBUG
-		++frameCounter;
-		if (frameCounter == 2000000)
-			frameCounter = 1;
-	}
-	
 	timedMgr->fireReadyEvents(time);
-	
-	/* Move clouds */
-	forNum (10) {
-		clouds[i].move(-cloudVels[i], 0);
-		if (clouds[i].gGB().left + clouds[i].gGB().width < -1)
-			clouds[i].sP(scrw + 2, clouds[i].gP().y);
+
+	if (mode == menu) {
+		// animations, music
+		return;
 	}
-		
+	
+	maybePanView();
+
 	if (mode == design)
 		designUpdate();
 	else playUpdate(time);
-		
-	//DEBUG
-		mouseTxt.setString(
-						   (curCourse ? curCourse->courseName + " " + tS(curCourse->numHoles) : "NULL") + "\n" + curPlatFile
-						   + "\n" + vecfStr(ball.gP()) + "\n" + vecfStr(deh.gP())
-						   );
+
+	
+// DEBUG /////////
+	
+	++frameCounter;
+	if (frameCounter == 2000000)
+		frameCounter = 1;
+	
+	mouseTxt.setString(
+					   (curCourse ? curCourse->courseName + " " + tS(curCourse->numHoles) : "NULL") + "\n" + curPlatFile
+					   + "\n" + vecfStr(ball.gP()) + "\n" + vecfStr(deh.gP())
+					   );
 }
 
 void State::draw ()
@@ -399,7 +405,7 @@ void State::resetGame ()
 	onCusp = false;
 	powerRising = true;
 	
-	//DEBUG ///////
+	// DEBUG ///////
 	//	ballActive = false;
 }
 
@@ -487,11 +493,12 @@ void State::loadHole (CourseHole& cHole)
 	// sky different colors; else random choice till courses
 	// dictate their own sky color
 	vector<Color> skyColors {
+#ifdef DBG
 		RAINYGRAY
-#ifndef DBG
-		, DKAZURE, SKYBLUE
-		, DRABCYAN, CORNFLOWER
-		, BUTTERSKY, PEACH
+#else
+		CORNFLOWER, SKYBLUE
+//		, DRABCYAN, DKAZURE
+//		, BUTTERSKY, PEACH
 #endif
 	};
 	app->setRedrawColor(randElemVal(skyColors));
@@ -879,9 +886,14 @@ void State::playUpdate (const Time& time)
 		gSeg = nullptr;
 	}
 	//====  end debug controls  =======
-	
-	maybePanView();
 
+	/* Move clouds */
+	forNum (10) {
+		clouds[i].move(-cloudVels[i], 0);
+		if (clouds[i].gGB().left + clouds[i].gGB().width < -1)
+			clouds[i].sP(curCourse->curHole->viewSize.x + 2, clouds[i].gP().y);
+	}
+	
 	handleAim();
 	
 	if (ballActive) {

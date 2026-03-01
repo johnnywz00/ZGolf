@@ -1,7 +1,6 @@
 
 /*
  -shouldn't have followthrough animation if short shot and deh moved to new pos
- -shouldn't run game logic when menu showing
 
  -FRICTION CREEP: add an angle threshold to each surface type where the ball won't move if it zeroed out velocity on shallow enough slant  (or,  fixing centrifugal may fix this, pretty certain FrictionSandbox had no creep)
  -Disregard all centrifugal calculations unless xlatdir exceeds speed threshold?

@@ -96,6 +96,7 @@ void State::loadPlatformData (string fname)
 	while (getline(fs, line)) {
 		if (line.empty()
 			|| line[0] == '#'
+			|| line[0] == '{'
 			|| line == "SPRITE_CACHED")
 			continue;
 		if (line[0] == ':') {
