@@ -754,10 +754,12 @@ void State::assembleSprite (string fname)
 			errLog << "754" << endl;
 			/* Use "fill bucket" algorithm to color in the platform */
 			if (p.fillInfo.type == PlatFillInfo::FillType::imagePixs) {
+				errLog << "Image filling:" << endl;
 				zimg.fillInFromImage(startPt, (resourcePath() / "images" / (std::get<string>(p.fillInfo.arg) + ".png")).string());
 			}
 			// more types like random sprite sprinkling
 			else { // FillType::colorDev
+				errLog << "Color filling:" << endl;
 				auto cdi = std::get<PlatFillInfo::ColorDevInfo>(p.fillInfo.arg);
 				zimg.fillInWithColor(startPt, cdi.c, cdi.dev);
 				zimg.blur(cdi.blurRepetitions);
