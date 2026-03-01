@@ -30,6 +30,7 @@ Certain features warrant a disclaimer until I have time to reimplement; among th
 	
 * The Line classes need to be reconfigured to calculate with respect to y instead of x when lines have a slope greater than 1, to avoid inaccuracies caused by enormous slope values when lines are close to vertical. 
 * I'm still in the experimentation phase of how to model centrifugal force, re: allowing putting around a loop. It's possible that I just need to keep tweaking the numerical values I'm using, but it's also possible that my current approach isn't going to produce wholly satisfactory results. I'm trying to model the ball "sticking" to an upside down surface when it has enough momentum, but it has been causing the ball to unrealistically "dig in" too hard and slow down elsewhere. 
+* The game has once or twice seemed to hang when switching back to play mode after creating a new level; however, after quitting, the new level file was still able to be added to the courses file.
 </details>
 
 The disclaimers aside, it has been a really good project for providing enjoyable challenges of logic and implementation. I had never done any research (purposefully, as most of my personal projects were meant to be problem-solving exercises for myself) on how other games modeled a ball interacting with curved terrain,

@@ -723,8 +723,8 @@ void State::assembleSprite (string fname)
 	Sprite spr, platSpr;
 	
 	// Troubleshooting Windows crash
-	ofstream errLog { "errlog.txt", std::ios_base::app};
-	errLog << "Log created: entering `try`" << endl;
+//	ofstream errLog { "errlog.txt", std::ios_base::app};
+//	errLog << "Log created: entering `try`" << endl;
 	try {
 		vecF rtSz {2200, 1800};
 		if (curCourse && curCourse->curHole)
@@ -733,14 +733,14 @@ void State::assembleSprite (string fname)
 		platRt.create(rtSz.x, rtSz.y);
 		rt.clear(Color::Transparent);
 		
-		errLog << "RenTexs created, entering platform loop" << endl;
-		static int once = 0;
+//		errLog << "RenTexs created, entering platform loop" << endl;
+//		static int once = 0;
 		for (auto& p : platforms) {
 			platRt.clear(Color::Transparent);
 			/* First draw an outline of the platform */
 			platRt.draw(p.va);
 			platRt.display();
-			errLog << "743" << endl;
+//			errLog << "743" << endl;
 			ZImage zimg {platRt.getTexture().copyToImage()};
 			/* Find a point that's inside the platform bounds */
 			vecf startPtFl {p.segs[1].mid};
@@ -751,24 +751,28 @@ void State::assembleSprite (string fname)
 				startPt.y = (uint)startPtFl.y;
 			}
 			while (!zimg.isBlank(zimg.getPixel(startPt)));
-			errLog << "754" << endl;
+//			errLog << "754" << endl;
 			/* Use "fill bucket" algorithm to color in the platform */
 			if (p.fillInfo.type == PlatFillInfo::FillType::imagePixs) {
-				errLog << "Image filling:" << endl;
+//				errLog << "Image filling:" << endl;
 				zimg.fillInFromImage(startPt, (resourcePath() / "images" / (std::get<string>(p.fillInfo.arg) + ".png")).string());
 			}
 			// more types like random sprite sprinkling
 			else { // FillType::colorDev
-				errLog << "Color filling:" << endl;
+//				errLog << "Color filling:" << endl;
 				auto cdi = std::get<PlatFillInfo::ColorDevInfo>(p.fillInfo.arg);
 				zimg.fillInWithColor(startPt, cdi.c, cdi.dev);
+#if defined(_WIN32) || defined(_WIN64)
+			// Windows is crashing on the blur
+#else
 				zimg.blur(cdi.blurRepetitions);
+#endif
 			}
-			errLog << "765" << endl;
+//			errLog << "765" << endl;
 			
 			tex.loadFromImage(zimg);
 			platRt.draw(Sprite(tex));
-			errLog << "Entering first seg loop" << endl;
+//			errLog << "Entering first seg loop" << endl;
 			
 			/* Then draw the surface segments over and around the platform body */
 			for (auto& seg : p.segs) {
@@ -844,7 +848,7 @@ void State::assembleSprite (string fname)
 				platRt.draw(spr);
 			}
 			
-			errLog << "Entering second (end cap) seg loop" << endl;
+//			errLog << "Entering second (end cap) seg loop" << endl;
 			/* Second pass to draw "end caps" where applicable */
 			for (auto& seg : p.segs) {
 				string endkey = seg.surfaceType + "End";
@@ -874,9 +878,9 @@ void State::assembleSprite (string fname)
 			platSpr.setTexture(platRt.getTexture());
 			platSpr.setTextureRect(IntRect(0, 0, rtSz.x, rtSz.y));
 			rt.draw(platSpr);
-			++once; // / ////
+//			++once;  / ////
 		}
-		errLog << "Exited platform loop" << endl;
+//		errLog << "Exited platform loop" << endl;
 		rt.display();
 		rt.getTexture().copyToImage().saveToFile((resourcePath() / "images" / "levelSprites" / (fname + ".png")).string());
 		ofstream ofs { resourcePath() / "levels" / (fname + ".txt"), std::ios_base::app };
@@ -884,16 +888,16 @@ void State::assembleSprite (string fname)
 		ofs.close();
 	}
 	catch (std::exception& e) {
-		errLog << "Caught exception: " << e.what() << endl;
-		if (errLog.is_open()) errLog.close();
-		mode = menu;
+//		errLog << "Caught exception: " << e.what() << endl;
+//		if (errLog.is_open()) errLog.close();
+//		mode = menu;
 	}
 	catch (...) {
-		errLog << "Unknown exception" << endl;
-		if (errLog.is_open()) errLog.close();
-		mode = menu;
+//		errLog << "Unknown exception" << endl;
+//		if (errLog.is_open()) errLog.close();
+//		mode = menu;
 	}
-	if (errLog.is_open()) errLog.close();
+//	if (errLog.is_open()) errLog.close();
 }
 
 void State::playUpdate (const Time& time)

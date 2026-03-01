@@ -20,7 +20,7 @@
  REFACTOR ALL LINE CODE TO USE X FOR NEAR VERTICAL
  !- another NAN/INF ball position when putting on a gentle convex/concave curve
  !- another roll() stack overflow in acute crotch
-
+-build on Windows and debug crash caused by ZImage.blur()
 
  
 	WISH LIST:

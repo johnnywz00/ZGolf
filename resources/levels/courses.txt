@@ -7,27 +7,19 @@
 3
 
 @Longshanks
-grookslem1
-fick1
-fick2
-fick3
-fick4
-fick5
+shanks1
+shanks2
+shanks3
+shanks4
+shanks5
 :
 
 @Chizzlewhisk
 chizzlewhisk1
+chizzlewhisk2
 :
 
 @Parfour
-grookslem2
-fick11
-fick21
-fick31
-platforms2
-platforms3
-platforms33
-crotchtests
-halfpipe
-loops
+parfour1
+parfour2
 :
