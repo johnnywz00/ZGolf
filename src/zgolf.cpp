@@ -690,27 +690,33 @@ void State::menuClick (int x, int y)
 void State::switchToPlay ()
 {	
 	mode = play;
-	string arg = filenameTbox.boxTxt.getString();
-	if (arg.empty()) {
-		arg = "platforms";
-		ofstream os {resourcePath() / "levels" / (arg + ".txt"), std::ios_base::app};
-		os.close();
+	try {
+		string arg = filenameTbox.boxTxt.getString();
+		if (arg.empty()) {
+			arg = "platforms";
+			ofstream os {resourcePath() / "levels" / (arg + ".txt"), std::ios_base::app};
+			os.close();
+		}
+		if (holeWhenEnteringMode
+			&& arg == holeWhenEnteringMode->platformsFile) {
+			loadHole(*holeWhenEnteringMode);
+		}
+		// Editor doesn't have course recognition yet; put a new hole
+		// in the default course
+		else {
+			CourseHole chl;
+			chl.platformsFile = arg;
+			chl.par = 4;
+			chl.holeNumber = int(courses[0].holes.size() + 1);
+			courses[0].holes.push_back(chl);
+			loadHole(courses[0].holes.back());
+			curCourse = &courses[0];
+			curCourse->curHole = &curCourse->holes.back();
+		}
 	}
-	if (holeWhenEnteringMode
-		&& arg == holeWhenEnteringMode->platformsFile) {
-		loadHole(*holeWhenEnteringMode);
-	}
-	// Editor doesn't have course recognition yet; put a new hole
-	// in the default course
-	else {
-		CourseHole chl;
-		chl.platformsFile = arg;
-		chl.par = 4;
-		chl.holeNumber = int(courses[0].holes.size() + 1);
-		courses[0].holes.push_back(chl);
-		loadHole(courses[0].holes.back());
-		curCourse = &courses[0];
-		curCourse->curHole = &curCourse->holes.back();
+	catch (std::exception& e) {
+		ofstream errFile { "errlog.txt", std::ios_base::app};
+		cerr << LocalTime().ascTime() << " Caught exception: " << e.what() << endl;
 	}
 }
 
