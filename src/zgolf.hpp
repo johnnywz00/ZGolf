@@ -1,6 +1,7 @@
 
 /*
  -shouldn't have followthrough animation if short shot and deh moved to new pos
+ -shouldn't run game logic when menu showing
 
  -FRICTION CREEP: add an angle threshold to each surface type where the ball won't move if it zeroed out velocity on shallow enough slant  (or,  fixing centrifugal may fix this, pretty certain FrictionSandbox had no creep)
  -Disregard all centrifugal calculations unless xlatdir exceeds speed threshold?
@@ -27,7 +28,7 @@
  - ANIMATION SYSTEM
  - ** draw the surface sprites following the splines in editor mode
  - ** in level.txt only store editor verts and their controls: only divide the curves into segments in loadPlatforms for physics and drawing
- - course assignment from editor
+ - course assignment from editor; have to deal with courses.reserve in loadCourses()
  -sprite collision objects in addition to path/collisioncheckline
  -note Verts that are screen border, don't log ground segments that are just framing the screen, let fill run all the way to edges
  -Decoration class (Hopscotch-style non-collision scenery)
@@ -211,10 +212,14 @@ private:
 	
 	void playUpdate (const Time& time);
 	
+	void maybePanView ();
+	
 	void moveDehToBall ()
 	{
 		deh.setPosition(ball.gP() + vecF(-3, 0));
 	}
+	
+	void handleAim ();
 	
 	void updateGuide ();
 	
@@ -245,6 +250,8 @@ private:
 	void disableShooting ();
 	
 	void startNewShotTimer ();
+	
+	void fadeTrajectory ();
  
 	void ballInHole ();
 	

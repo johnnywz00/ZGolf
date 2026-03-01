@@ -42,8 +42,10 @@ void State::onCreate ()
 	menuInstr = Text(
 					 "Hold Space to shoot\nHold Shift and Space to putt\n"
 					 "Arrow keys to pan the view\n"
-					 "Aim with mouse or < > keys\nN for next hole"
-					 "\nM to enter level creator mode"
+					 "Aim with mouse or < > keys\n"
+					 "\t(Shift speeds up)\n"
+					 "N for next hole\n"
+					 "M to enter level creator mode"
 					 , gFont("toolButton"), 20);
 	menuInstr.setOrigin(menuInstr.gGB().width / 2, 0);
 	menuInstr.setPosition(scrcx, signatureTxt.gP().y + 60);
@@ -138,7 +140,6 @@ void State::onCreate ()
 	
 	ball.setTexture(gTexture("ball"));
 	centerOrigin(ball);
-	ball.speedClamp = speedClamp;
 	ballRadius = ball.gLB().height / 2;
 	
 	flag.setTexture(gTexture("flag"));
@@ -168,14 +169,13 @@ void State::onCreate ()
 	/* Origin will be down near ball position */
 	deh.setOrigin(deh.gLB().left + deh.gLB().width - 15, deh.gLB().top + deh.gLB().height - 12);
 	deh.setColor(Color(150, 150, 150));
-		
-	trajecImg.create(scrw, scrh, Color::Transparent);
-	trajecTx.loadFromImage(trajecImg);
-	trajecSpr.setTexture(trajecTx);
+	
+	// Trajectory members initialized in loadHole since View size can change
 	
 	floatEps = .001;
 	loadCourse(courses[0]);
 	resetGame();
+	restoreView(); // Loading the default course/hole will have set view to 1728 1117
 
 // DEBUG ///////////
 	drt.create(scrw, scrh);
@@ -351,7 +351,7 @@ void State::draw ()
 //	w->draw(rrr);
 	// //////////////////
 	}
-	w->draw(mouseTxt);
+//	w->draw(mouseTxt);
 }
 
 void State::loadAnimFrames()
@@ -469,7 +469,12 @@ void State::loadHole (CourseHole& cHole)
 	flagTxt.setString(tS(cHole.holeNumber));
 	centerOrigin(flagTxt);
 	loadPlatforms(cHole.platformsFile, &cHole);
-	rwin->setView(View(FloatRect(0, 0, cHole.viewSize.x, cHole.viewSize.y)));
+	auto sz = cHole.viewSize; // viewSize set within loadPlatforms()
+	rwin->setView(View(FloatRect(0, 0, sz.x, sz.y)));
+	trajecRt.create(sz.x, sz.y);
+	trajecImg.create(sz.x, sz.y, Color::Transparent);
+	trajecTx.loadFromImage(trajecImg);
+	trajecSpr.setTexture(trajecTx);
 	curPlatFile = cHole.platformsFile;
 	moveDehToBall();
 	deh.setScale(hole.gP().x > ball.gP().x ? 1 : -1, 1);
@@ -637,18 +642,21 @@ void State::loadPlatforms (string fname, CourseHole* chl)
 			flagTxt.sP(g.mid + vecf(0, -51));
 		}
 		if (hasTee) {
-			ball.sP(g.mid + pVec(ball.gLB().height / 2 + 1, g.normal));
+			ball.sP(g.mid + pVec(ballRadius + 1, g.normal));
 		}
 		p.segs.push_back(g);
 		p.va.append(Vertex(start, p.fillColor));
 	} // end while
 	plats.close();
 	
+	strPair	txInfo = {(path("levelSprites") / (fname + ".png")).string(), fname};
 	if (!hasCachedSprite) {
 		assembleSprite(fname);
+		/* Always reload the texture if it's been modified in the editor */
+		Resources::addTexToMap(txInfo);
 	}
-//	if (!Resources::texExists(fname))
-		Resources::addTexToMap({(path("levelSprites") / (fname + ".png")).string(), fname});
+	if (!Resources::texExists(fname))
+		Resources::addTexToMap(txInfo);
 	curHoleSprite.setTexture(gTexture(fname));
 }
 
@@ -851,27 +859,16 @@ void State::assembleSprite (string fname)
 
 void State::playUpdate (const Time& time)
 {
-	// DEBUG CONTROLS
-	ikp(Z) {
-		if (isShiftPressed())
-			muK = decm(muK, .01);
-		else muK = incm(muK, .01, 5);
-		PAUSE;
-	}
-	ikp(X) {
-		if (isShiftPressed())
-			muS = decm(muS, .01);
-		else muS = incm(muS, .01, 5);
-		PAUSE;
-	}
+	//==  DEBUG CONTROLS  ===============
+	adjustVal(Z, muK, .01, 0, 5)
+	adjustVal(X, muS, .01, 0, 5)
 	adjustVal(Num1, bounceLoss, .02, 0, 1)
 	adjustVal(Num2, maxAngForRoll, 1, 0, 359)
 	adjustVal(Num3, maxAngForRollCvx, 1, 0, 359)
 	adjustVal(Num4, convexRollClamp, .02, 0, 5)
 	adjustVal(Num5, centrifugalDecmFactor, .02, 0, 1)
 	adjustVal(Num6, centrifugalIncmFactor, .02, 0, 1)
-	
-	
+		
 	bool dbgMove = false;
 	if (isShiftPressed() && iKP(D)) { ball.move(2, 0); dbgMove = true; }
 	if (isShiftPressed() && iKP(A)) { ball.move(-2, 0); dbgMove = true; }
@@ -881,84 +878,12 @@ void State::playUpdate (const Time& time)
 		rolling = false;
 		gSeg = nullptr;
 	}
+	//====  end debug controls  =======
 	
-	View vw = rwin->getView();
-	auto oldPos = vw.getCenter();
-	bool changedView = false;
-	if (iKP(Left)) {
-		vw.move(-5, 0);
-		changedView = true;
-		if (vw.getCenter().x < scrcx)
-			vw.setCenter(scrcx, vw.getCenter().y);
-	}
-	if (iKP(Up)) {
-		vw.move(0, -5);
-		changedView = true;
-		if (vw.getCenter().y < scrcy)
-			vw.setCenter(vw.getCenter().x, scrcy);
-	}
-	if (iKP(Right)) {
-		vw.move(5, 0);
-		changedView = true;
-	}
-	if (iKP(Down)) {
-		vw.move(0, 5);
-		changedView = true;
-	}
-	if (changedView) {
-		auto dif = vw.getCenter() - oldPos;
-		statsTxt.move(dif);
-		rwin->setView(vw);
-	}
+	maybePanView();
+
+	handleAim();
 	
-	
-	
-	//////////////
-	// DEBUG MOUSE AIM: comment out the release aiming
-	//	vecf dif = vecf(mx, my) - ball.gP();
-	//	angle = toPolar(dif).y;
-	/////////////////
-	
-	/* Keyboard control of club aim */
-	if ( iKP(Period) && !iKP(Comma)) {
-		angle += angleRate;
-		if (angle >= 360)
-			angle  -= 360;
-	}
-	if ( iKP(Comma) && !iKP(Period)) {
-		angle -= angleRate;
-		if (angle < 0)
-			angle += 360;
-	}
-	
-	/* Mouse for shot aim */
-	float oldAng = angle;
-	float aimRadius = 400;
-	vecf oldVec = pVec(aimRadius, oldAng);
-	vecf mouseDif = toVecF(mouseVec - oldMouse);
-	vecf newVec = oldVec + mouseDif;
-	angle = toPolar(newVec).y;
-	
-	if (gSeg) {
-		/* Can't iron shoot nearly parallel with surface */
-		float leftThresh = gSeg->angle;
-		float rightThresh = gSeg->oppAngle;
-		if (inCrotch) {
-			leftThresh = crotchInfo.nextSeg()->angle;
-			rightThresh = crotchInfo.prevSeg()->angle;
-		}
-		leftThresh = czdg(leftThresh + minAngForIronShot);
-		rightThresh = czdg(rightThresh - minAngForIronShot);
-		if (angleIsOrFallsBetween(angle, rightThresh, leftThresh)) {
-			angle = angleBetween(angle, leftThresh) < angleBetween(angle, rightThresh) ? leftThresh : rightThresh;
-		}
-		/* Can't shoot nearly vertical */
-		leftThresh = 270 - ironMinDevFromVertical;
-		rightThresh = 270 + ironMinDevFromVertical;
-		if (angleIsOrFallsBetween(angle, leftThresh, rightThresh))
-			angle = clockwiseOf(angle, oldAng) ? rightThresh : leftThresh;
-	}
-		
 	if (ballActive) {
 		if (timedMgr->gOn("canShoot") && gSeg) {
 			updateGuide();
@@ -979,57 +904,15 @@ void State::playUpdate (const Time& time)
 				dbgMsg = "  ROLL CALLED WHILE GSEG NULL";
 			}
 			/* roll() itself will transition to fly() if the newly added gravity
-			 * pulls the ball away from the surface
+			 * has pulled the ball away from the surface
 			 */
 			roll(1.f);
 		}
 		else fly(1.f);
 	}
 	
-	/* Fading ball trajectory */
-	Image img {drt.getTexture().copyToImage()};
-	forNum(scrh) {
-		forNumJ(scrw) {
-			/* Get pixel from the trajectory rentex */
-			auto pix = img.getPixel(j, i);
-			/* If it's transparent (not drawn to last frame) get the
-			 * pixel from the stored image and decrease its alpha
-			 */
-			if (pix.a == 0) {
-				pix = trajecImg.getPixel(j, i);
-				if (pix.a == 0)
-					continue;
-				else (pix.a = max(0, pix.a - 5));
-			}
-			trajecImg.setPixel(j, i, pix);
-		}
-	}
-	drt.clear(Color::Transparent);
-	trajecTx.update(trajecImg);
+	fadeTrajectory();
 	
-	
-	/*
-	 // THIS LEAVES faint trajectory behind and taints the sky color
-	 Color c = gw->redrawColor;
-	 c.a = 5;
-	 RectangleShape r;
-	 r.setSize({scrw, scrh});
-	 r.setFillColor(c);
-	 drtDraw(r);
-	 */
-	
-	/*
-	 //causes purple color to degenerate to blackish before fading
-	 ZImage zim {drt.getTexture().copyToImage()};
-	 zim.fadeByAlphaVal(5); //turn off if all ghosts are faded
-	 Texture tx;
-	 tx.loadFromImage(zim);
-	 Sprite spr(tx);
-	 drt.clear(Color::Transparent);
-	 drtDraw(spr);
-	 */
-	
-	// This doesn't have to be recomputed every frame
 	statsTxt.setString(
 					   "COURSE: " + curCourse->courseName +
 					   "      HOLE: " + tS(curCourse->curHole->holeNumber) +
@@ -1037,7 +920,11 @@ void State::playUpdate (const Time& time)
 					   "\nSTROKES: " + tS(curCourse->curHole->strokeCt) +
 					   "     TOTAL: " + tS(curCourse->strokeCt)
 					   );
-	
+
+	// DEBUG ////////
+
+	//drt.clear(Color::Transparent); ?
+
 	mouseTxt.setString(
 					   tS(mouseVec.x) + ", " + tS(mouseVec.y)
 					   //					   fS(ball.gP().x) + ", " + fS(ball.gP().y)
@@ -1056,7 +943,104 @@ void State::playUpdate (const Time& time)
 					   );
 } //end update
 
-void State::updateGuide()
+void State::maybePanView ()
+{
+	// Panning the screen: not useful till editor supports
+	View vw = rwin->getView();
+	auto oldPos = vw.getCenter();
+	auto leftLimit = curCourse->curHole->viewSize.x / 2;
+	auto topLimit = curCourse->curHole->viewSize.y / 2;
+	bool changedView = false;
+	if (iKP(Left)) {
+		vw.move(-5, 0);
+		changedView = true;
+		if (vw.getCenter().x < leftLimit)
+			vw.setCenter(leftLimit, vw.getCenter().y);
+	}
+	if (iKP(Up)) {
+		vw.move(0, -5);
+		changedView = true;
+		if (vw.getCenter().y < topLimit)
+			vw.setCenter(vw.getCenter().x, topLimit);
+	}
+	if (iKP(Right)) {
+		vw.move(5, 0);
+		changedView = true;
+	}
+	if (iKP(Down)) {
+		vw.move(0, 5);
+		changedView = true;
+	}
+	if (changedView) {
+		auto dif = vw.getCenter() - oldPos;
+		statsTxt.move(dif);
+		rwin->setView(vw);
+	}
+}
+
+void State::handleAim ()
+{
+	/* Mouse for shot aim */
+	// This was an effort to make aiming require some visual
+	// judgment rather than simply placing the cursor at the
+	// point you want to aim for, but I suspect it may frustrate
+	// the casual user, and it got finicky near the borders of
+	// the screen
+	/*
+	 float oldAng = angle;
+	 float aimRadius = 400;
+	 vecf oldVec = pVec(aimRadius, oldAng);
+	 vecf mouseDif = toVecF(mouseVec - oldMouse);
+	 vecf newVec = oldVec + mouseDif;
+	 angle = toPolar(newVec).y;
+	 */
+	
+	if (gSeg) {
+		float oldAng = angle;
+		// ////////////////
+		// THIS WAS DEBUG MOUSE AIM: but for now using it for release also
+		if (mouseVec != oldMouse) {
+			vecf dif = vecf(mouseVec.x, mouseVec.y) - ball.gP();
+			angle = toPolar(dif).y;
+		}
+		// ////////////
+		
+		/* Keyboard control overrides mouse if used */
+		bool keyboardUsed = false;
+		if (iKP(Comma) && !iKP(Period)) {
+			angle -= (isShiftPressed() ? angleRate * 2 : angleRate);
+			keyboardUsed = true;
+		}
+		if (iKP(Period) && !iKP(Comma)) {
+			angle += (isShiftPressed() ? angleRate * 2 : angleRate);
+			keyboardUsed = true;
+		}
+
+		/* Can't iron shoot nearly parallel with surface */
+		float leftThresh = gSeg->angle;
+		float rightThresh = gSeg->oppAngle;
+		if (inCrotch) {
+			leftThresh = crotchInfo.nextSeg()->angle;
+			rightThresh = crotchInfo.prevSeg()->angle;
+		}
+		leftThresh = czdg(leftThresh + minAngForIronShot);
+		rightThresh = czdg(rightThresh - minAngForIronShot);
+		if (angleIsOrFallsBetween(angle, rightThresh, leftThresh)) {
+			angle = angleBetween(angle, leftThresh) < angleBetween(angle, rightThresh) ? leftThresh : rightThresh;
+		}
+		/* Can't shoot nearly vertical */
+		float vertLeftThresh = 270 - ironMinDevFromVertical;
+		float vertRightThresh = 270 + ironMinDevFromVertical;
+		if (angleIsOrFallsBetween(angle, vertLeftThresh, vertRightThresh)) {
+			if (keyboardUsed)
+				angle = clockwiseOf(angle, oldAng) ? vertRightThresh : vertLeftThresh;
+			else	// THIS may not be the right logic if going back to other mouse aim
+				angle = angleBetween(angle, vertLeftThresh) < angleBetween(angle, vertRightThresh) ? vertLeftThresh : vertRightThresh;
+		}
+	}
+}
+
+void State::updateGuide ()
 {
 	guideline.clear();
 	vecF ogn = ball.gP();
@@ -1504,7 +1488,7 @@ void State::fly(float pct)
 	traj.setSize({pv.x, 2});
 	traj.setRotation(pv.y);
 	traj.setPosition(oldPos);
-	traj.setFillColor(PURPLE);
+	traj.setFillColor(withAlpha(PURPLE, 130));
 	trajecRt.draw(traj);
 	trajecRt.display();
 } // end fly()
@@ -2034,6 +2018,50 @@ void State::startNewShotTimer ()
 			trajecRt.draw(deh);
 			trajecRt.display();
 		});
+}
+
+void State::fadeTrajectory ()
+{
+	Image img {trajecRt.getTexture().copyToImage()};
+	forNum(scrh) {
+		forNumJ(scrw) {
+			/* Get pixel from the trajectory rentex */
+			auto pix = img.getPixel(j, i);
+			/* If it's transparent (not drawn to last frame) get the
+			 * pixel from the stored image and decrease its alpha
+			 */
+			if (pix.a == 0) {
+				pix = trajecImg.getPixel(j, i);
+				if (pix.a == 0)
+					continue;
+				else (pix.a = max(0, pix.a - 5));
+			}
+			trajecImg.setPixel(j, i, pix);
+		}
+	}
+	trajecRt.clear(Color::Transparent);
+	trajecTx.update(trajecImg);
+
+/*
+ // THIS LEAVES faint trajectory behind and taints the sky color
+ Color c = gw->redrawColor;
+ c.a = 5;
+ RectangleShape r;
+ r.setSize({scrw, scrh});
+ r.setFillColor(c);
+ drtDraw(r);
+ */
+
+/*
+ //causes purple color to degenerate to blackish before fading
+ ZImage zim {drt.getTexture().copyToImage()};
+ zim.fadeByAlphaVal(5); //turn off if all ghosts are faded
+ Texture tx;
+ tx.loadFromImage(zim);
+ Sprite spr(tx);
+ drt.clear(Color::Transparent);
+ drtDraw(spr);
+ */
 }
 
 void State::ballInHole ()
