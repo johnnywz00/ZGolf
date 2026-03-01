@@ -390,10 +390,10 @@ private:
 	void testRetro()
 	{
 		Texture tx;
-		tx.loadFromFile(resourcePath() / "images" / "china.png");
+		tx.loadFromFile((resourcePath() / "images" / "china.png").string());
 		ZImage zim {tx.copyToImage()};
 		zim.convertToRetroColor();
-		zim.saveToFile(resourcePath() / "images" / "retroExc.png");
+		zim.saveToFile((resourcePath() / "images" / "retroExc.png").string());
 	}
 	
 	void makeBlotchTx()
