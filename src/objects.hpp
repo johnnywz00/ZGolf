@@ -43,6 +43,7 @@ struct CourseHole
 	Color 		skyColor;
 	string 		platformsFile;
 	string 		holeName;
+	vecF		viewSize {1728, 1117};
 	int 		holeNumber;
 	int 		par = 5;
 	int 		strokeCt;

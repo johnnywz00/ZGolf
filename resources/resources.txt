@@ -33,10 +33,13 @@ Monaco.ttf					debug
 YurineOverflow.otf			menuTitle
 RollingNoOne-ExtraBold.otf	flagFont
 RollingNoOne-ExtraBold.otf	toolButton
-DSHolzschrift.otf			stats
+#DSHolzschrift.otf			stats
+"Tahoma Bold.ttf"			stats
+"Tahoma Bold.ttf"			instr
 
 
 @sounds
+savefile.mp3	save
 golf.wav		swing
 putt.wav		putt
 ballInHole.wav			ballInHole

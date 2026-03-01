@@ -5,7 +5,7 @@
 <img width="1728" height="1117" alt="Screenshot 2026-02-12 at 4 58 06 PM" src="https://github.com/user-attachments/assets/23c4faed-b039-4cfe-b22a-12f822cf847e" />
 
 ### ABOUT THE PROJECT
-<font color="green">ZGolf</font> is a project that was a kind of natural outcome of carrying previous experiments to the next level. It integrates the projectile physics of Parasheep, the sphere collisions of LetterBalls, and the sprite collision checking of Hopscotch, and adds new levels of sophistication to the whole. Even so, the first incarnation of this game came relatively early in my programming career. Years later, the physics got a major overhaul, and the editor gained a lot more functionality.
+ZGolf is a project that was a kind of natural outcome of carrying previous experiments to the next level. It integrates the projectile physics of Parasheep, the sphere collisions of LetterBalls, and the sprite collision checking of Hopscotch, and adds new levels of sophistication to the whole. Even so, the first incarnation of this game came relatively early in my programming career. Years later, the physics got a major overhaul, and the editor gained a lot more functionality. No engines or game libraries are used beyond SFML, which handles fundamentals like drawing to screen, playing sound, and getting input events. 
 
 The game's platforms are made with curving terrain which dictates how the ball bounces or rolls. There are different surface types (deep grass, short grass, sand...), which dictate how far the ball will roll, how much bounce will be absorbed, etc. New holes can be created in an editor, and sets of holes can be grouped together into courses. 
 
@@ -38,6 +38,8 @@ The disclaimers aside, it has been a really good project for providing enjoyable
 In playing mode, most of the interesting logic resides in the fly() and roll() methods. 
 
 The stone wall generator (shown in the game screenshot above) was a whole other algorithm challenge that I had set for myself independently of this game, and then incorporated here. 
+
+The splash/menu screen background came from a generator I made as another self-challenge to implement Delaunay triangulation and Voronoi tessellation.
 </details>
 
 Not surprisingly, I have a pretty long wish list of additional hopes and features for the game, but it's tough to say if or when time will allow. Wind, water hazards, levels that are larger than the screen size and can pan the view, more animations, better graphical details and corresponding editor functions.

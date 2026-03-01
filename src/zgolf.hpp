@@ -1,8 +1,9 @@
 
 /*
-  
- FRICTION CREEP: add an angle threshold to each surface type where the ball won't move if it zeroed out velocity on shallow enough slant  (or,  fixing centrifugal may fix this, pretty certain FrictionSandbox had no creep)
- -Disregard all centrifugl calculations unless xlatdir exceeds speed threshold?
+ -shouldn't have followthrough animation if short shot and deh moved to new pos
+
+ -FRICTION CREEP: add an angle threshold to each surface type where the ball won't move if it zeroed out velocity on shallow enough slant  (or,  fixing centrifugal may fix this, pretty certain FrictionSandbox had no creep)
+ -Disregard all centrifugal calculations unless xlatdir exceeds speed threshold?
  -replace centrif w note of upsidedownness, angle + speed?
  
 		TO DO:
@@ -11,6 +12,7 @@
  -do screen edges properly
  
  -when friction creeping ball (and now deh bc staying aligned with it) sometimes disappear (when tab dropping the ball again, ball is traveling at high rate and the sprite is solid black colored)
+ -using club a foot from hole, hitting mostly level, when ball got to hole it fell through ground instead of going in hole
  ** ball still freezes in crotch if crotch is made by two different platforms: design platforms without overlap for now
  -centrifugal and friction creep aren't right; not fixed by roll() 1404. (ball could perch on marble of ≈3 degrees; creep doesn't seem to respect muS value  unless it's because gravity factor isn't proportionate)
  -fine tune surface physics after fixing centrifugal & friction creep
@@ -20,12 +22,18 @@
 
 
  
- 
- 
 	WISH LIST:
  ==============
- -graphic-only "end caps" where e.g. grass overhangs a stone wall (rather than visually bisecting
- -draw the surface sprites following the splines in editor mode
+ - ANIMATION SYSTEM
+ - ** draw the surface sprites following the splines in editor mode
+ - ** in level.txt only store editor verts and their controls: only divide the curves into segments in loadPlatforms for physics and drawing
+ - course assignment from editor
+ -sprite collision objects in addition to path/collisioncheckline
+ -note Verts that are screen border, don't log ground segments that are just framing the screen, let fill run all the way to edges
+ -Decoration class (Hopscotch-style non-collision scenery)
+ - layers: grass fill that sprinkles sprites from back to front/top to bottom
+ -gradient skies
+
 
  -sophisticate rolling into hole checking/jumping
  -may need to clear events and reset animframes on loadNextHole?
@@ -34,8 +42,6 @@
  -color picker
  -water hazards;  wind
  -panning up and over
- -in level.txt only store editor verts and their controls: only divide the curves into segments in loadPlatforms for physics and drawing
- -Hopscotch-style non-collision scenery
  -some kind of indicator whether an angle will roll or bounce
  -set par for hole in editor
  -ball bonks deh on head
@@ -181,13 +187,21 @@ private:
 	
 	void loadCourse (Course&);
 	
+	void loadHole (CourseHole&);
+	
 	void loadNextHole ();
 	
-	void loadPlatforms (string fname = "platforms");
+	void loadPlatforms (string fname = "platforms", CourseHole* chl=nullptr);
 
 	void menuDraw();
 	
 	void menuClick(int x, int y);
+	
+	void restoreView ()
+	{
+		rwin->setView(rwin->getDefaultView());
+		statsTxt.setPosition(10, 15);
+	}
 
 	
 /* Play mode methods */
@@ -196,6 +210,11 @@ private:
 	void assembleSprite (string);
 	
 	void playUpdate (const Time& time);
+	
+	void moveDehToBall ()
+	{
+		deh.setPosition(ball.gP() + vecF(-3, 0));
+	}
 	
 	void updateGuide ();
 	
@@ -280,6 +299,7 @@ private:
 	vector<CourseButton>	courseButtons;
 	Text					menuTitle
 							, signatureTxt
+							, menuInstr
 	;
 
 /* Play mode members */
@@ -297,6 +317,7 @@ private:
 	Text					flagTxt
 							, statsTxt
 	;
+	RenderTexture			trajecRt;
 	Texture                 trajecTx;
 	ZImage					trajecImg;
 	
@@ -322,16 +343,21 @@ private:
     ;
     
 /* Design mode members */
-	ToolWindow				toolWin {vecf(100, 800)};
+	ToolWindow				toolWin {vecF(100, 800)};
 	Textbox					filenameTbox;
 	Textbox					fillInfoTbox;
+	RectangleShape			instrRect;
+	Text					instrTxt;
+	Text					instrLabel;
 	vector<EditorPlatform>  curPlatforms;
+	CourseHole*				holeWhenEnteringMode = nullptr;
 	Textbox*				activeTbox = nullptr;
 	Vert*                   gHighlighted = nullptr;
 	Vert*                   gClicked = nullptr;
 	EditorPlatform*			curPlat = nullptr;
 	string					curSurfType = "grass";
 	string					curTool;
+	bool					showInstr = false;
 
 
 	

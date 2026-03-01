@@ -31,17 +31,29 @@ void State::onCreate ()
 	centerOrigin(menuTitle);
 	menuTitle.setPosition(scrcx, 200);
 	
-	signatureTxt = Text("John Ziegler, 2021-2026    johnnywz00@yahoo.com", gFont("toolButton"), 20);
+	signatureTxt = Text(
+		"John Ziegler, 2021-2026    johnnywz00@yahoo.com"
+						, gFont("toolButton"), 20);
 	Color c = ORANGE;
 	centerOrigin(signatureTxt);
-	signatureTxt.setPosition(scrcx, menuTitle.gP().y + 175);
+	signatureTxt.setPosition(scrcx, menuTitle.gP().y + 163);
 	signatureTxt.setFillColor(Color(c.r, c.g, c.b, 160));
+	
+	menuInstr = Text(
+					 "Hold Space to shoot\nHold Shift and Space to putt\n"
+					 "Arrow keys to pan the view\n"
+					 "Aim with mouse or < > keys\nN for next hole"
+					 "\nM to enter level creator mode"
+					 , gFont("toolButton"), 20);
+	menuInstr.setOrigin(menuInstr.gGB().width / 2, 0);
+	menuInstr.setPosition(scrcx, signatureTxt.gP().y + 60);
+	menuInstr.setFillColor(Color(c.r, c.g, c.b, 160));
 	
 	float buttonX = scrcx - 500;
 	forNum(3) {
-		string fname = courses[i].holes[0].platformsFile;
-		Resources::addTexToMap(make_pair(fname + ".png", fname));
-		courseButtons.emplace_back(courses[i], vecf(buttonX, 800));
+		string fname = courses[i + 1].holes[0].platformsFile;
+		Resources::addTexToMap(make_pair((path("levelSprites") / (fname + ".png")).string(), fname));
+		courseButtons.emplace_back(courses[i + 1], vecf(buttonX, scrh - 100)); // i+1 bc dflt course is 0
 		buttonX += 500;
 	}
 	// end menu
@@ -49,14 +61,76 @@ void State::onCreate ()
 	toolWin.init();
 	loadToolbarButtons();
 	
+	instrTxt = Text(
+					"- The topmost textbox is a filename (without extensions like .txt);"
+					"\n\tthis is the file that will be written to when saving a level,"
+					"\n\tor the file that will be loaded when returning to play mode\n"
+					"- The lower textbox represents how the current platform will be\n"
+					"\tcolor-filled. A string will be treated as a filename: the pixels\n"
+					"\tof that image will be copied into the boundaries of the platform.\n"
+					"\tOtherwise it must be six numbers separated by spaces which stand\n"
+					"\tfor R, G, B, and alpha of the primary color, followed by a\n"
+					"\tmaximum deviation value from the primary color, followed by the\n"
+					"\tnumber of blending iterations to run on the result.\n \n"
+					"M  =  switch to play mode, loading the filename in the textbox\n"
+					"X  =  clear screen\n"
+					"U  =  finalize newest platform and start another (connects the\n"
+					"\tlast-placed vertex of the platform with the first one)\n"
+					"J  =  save editor as new hole (if name listed in filename textbox\n"
+					"\tis new), or permanently apply changes to existing hole (if name\n"
+					"\tin textbox is the same as when editor was loaded)\n"
+					"Delete  =  erase selected vertex; if Command/Windows key\n"
+					"\tpressed, deletes all vertices for that platform\n"
+					"Space  =  switch to select tool; deselect selected vertex\n"
+					"Enter  =  deselect selected vertex\n"
+					
+					" \nClick on existing vertex:\n"
+					"\t- With select tool, begin to drag vertex for repositioning\n"
+					"\t- if Shift pressed, highlight or unhighlight the vertex (vert must be\n"
+					"\t\thighlighted to create control point for it)\n"
+					"\t- With hole button, places hole on the corresponding ground segment\n"
+					"\t- With tee button, places tee \" \" \n"
+					"\t- With a surface type button, sets the surface type for \" \" \n"
+					"\t- if Command/Windows key pressed, sets all segs of that platform to\n"
+					"\t\tthat surface type\n"
+					
+					" \nClick on existing control point:\n"
+					"\t- Drag to reposition\n"
+					"\t- With Shift pressed, deletes the control point and redraws the spline\n"
+					
+					" \nClicking in the editor space:\n"
+					"\t- Creates a new vertex connected to the last point of the current platform\n"
+					"\t- If a vertex is highlighted, creates a new vertex inserted directly \n"
+					"\t\tafter the highlighted one\n"
+					"\t- If a vertex is highlighted and Shift is pressed, creates a control \n"
+					"\t\tpoint for that vertex (two max)\n"
+					" \nThe editor doesn't yet have course-awareness: after saving a hole\n"
+					"\tit can be added to a course manually by opening the file courses.txt"
+					"\n \n                      (Click or press ? to hide)",
+					gFont("instr"), 18
+					);
+	centerOrigin(instrTxt);
+	instrTxt.setPosition(scrcx, scrcy);
+	instrTxt.setFillColor(CHARCOAL);
+	instrRect.setSize({instrTxt.gLB().width + 20, instrTxt.gLB().height + 20});
+	centerOrigin(instrRect);
+	instrRect.setPosition(scrcx, scrcy);
+	instrRect.setFillColor(withAlpha(ORANGE75, 140));
+	instrRect.setOutlineThickness(2);
+	instrRect.setOutlineColor(ORANGE75);
+	
+	instrLabel = Text("Press ? key for instructions", gFont("instr"), 18);
+	instrLabel.setFillColor(DKORANGE75);
+	instrLabel.setPosition(scrw - 510, 23);
+	
 	statsTxt = Text("", gFont("stats"), 20);
 	statsTxt.setPosition(10, 15);
 	statsTxt.setOutlineThickness(3);
 	statsTxt.setOutlineColor(CHARCOAL);
 	statsTxt.setFillColor(Color(200, 200, 210));
 	
-	mouseTxt = Text("", gFont("debugFont"), 13);
-	mouseTxt.setPosition(8, 58);
+	mouseTxt = Text("", gFont("debug"), 13);
+	mouseTxt.setPosition(8, 65);
 	mouseTxt.setFillColor(Color::Black);
 
 	mouseVec.x = Mouse::gP(*rwin).x;
@@ -74,7 +148,7 @@ void State::onCreate ()
 	flagTxt = Text("", gFont("flagFont"), 13);
 	flagTxt.setFillColor(Color::Black);
 	
-	for (int i = 0; i < 10; ++i) {
+	forNum(10) {
 		clouds[i].setTexture(gTexture("cloud"));
 		clouds[i].sP(randRange(0, scrw + 400), randRange(0, scrh - 50));
 		float factor = float(randRange(50, 120)) / 100;
@@ -85,22 +159,22 @@ void State::onCreate ()
 	}
 
 	curPlatforms.reserve(50);
-	filenameTbox = Textbox(gFont("debug"), {1500, 25});
-	fillInfoTbox = Textbox(gFont("debug"), {1500, 70});
+	filenameTbox = Textbox(gFont("debug"), {scrw - 228, 25});
+	fillInfoTbox = Textbox(gFont("debug"), {scrw - 228, 70});
 	
 	deh.setTexture(gTexture("deh"));
-	deh.setColor(Color(150, 150, 150));
-	/* Origin will be down near ball position */
-	deh.setOrigin(deh.gLB().left + deh.gLB().width - 15, deh.gLB().top + deh.gLB().height - 12);
 	loadAnimFrames(); //@kludgeAnim
 	setDehFrame(0); //@kludgeAnim
+	/* Origin will be down near ball position */
+	deh.setOrigin(deh.gLB().left + deh.gLB().width - 15, deh.gLB().top + deh.gLB().height - 12);
+	deh.setColor(Color(150, 150, 150));
 		
 	trajecImg.create(scrw, scrh, Color::Transparent);
 	trajecTx.loadFromImage(trajecImg);
 	trajecSpr.setTexture(trajecTx);
 	
 	floatEps = .001;
-	
+	loadCourse(courses[0]);
 	resetGame();
 
 // DEBUG ///////////
@@ -155,8 +229,10 @@ void State::onKeyPress (Keyboard::Key k)
 		case Keyboard::Escape:
 			if (mode == menu)
 				app->close();
-			else
+			else {
 				mode = menu;
+				restoreView();
+			}
 			break;
 			
 		case Keyboard::M:
@@ -210,7 +286,7 @@ void State::update (const Time& time)
 	timedMgr->fireReadyEvents(time);
 	
 	/* Move clouds */
-	for (int i = 0; i < 10; ++i) {
+	forNum (10) {
 		clouds[i].move(-cloudVels[i], 0);
 		if (clouds[i].gGB().left + clouds[i].gGB().width < -1)
 			clouds[i].sP(scrw + 2, clouds[i].gP().y);
@@ -221,7 +297,10 @@ void State::update (const Time& time)
 	else playUpdate(time);
 		
 	//DEBUG
-	//	statsTxt.setString(   );
+		mouseTxt.setString(
+						   (curCourse ? curCourse->courseName + " " + tS(curCourse->numHoles) : "NULL") + "\n" + curPlatFile
+						   + "\n" + vecfStr(ball.gP()) + "\n" + vecfStr(deh.gP())
+						   );
 }
 
 void State::draw ()
@@ -272,7 +351,7 @@ void State::draw ()
 //	w->draw(rrr);
 	// //////////////////
 	}
-//	w->draw(mouseTxt);
+	w->draw(mouseTxt);
 }
 
 void State::loadAnimFrames()
@@ -329,19 +408,32 @@ void State::resetGame ()
  */
 void State::loadCourses()
 {
+	// Temp container for levels created in editor, until editor gets course handling
+	Course dfltCourse;
+	dfltCourse.courseName = "default";
+	dfltCourse.numHoles = 1;
+	CourseHole dfltHole;
+	dfltHole.platformsFile = "platforms";
+	dfltHole.holeNumber = 1;
+	dfltCourse.holes.push_back(dfltHole);
+	
 	// count and reserve or keep total count current in data file
 	ifstream courseFile {resourcePath() / "levels" / "courses.txt"};
 	if (!courseFile.is_open()) {
 		cerr << "Couldn't load 'levels/courses.txt'. \n";
+		courses.push_back(dfltCourse);
 		return;
 	}
+	
 	string line;
 	Course course;
 	while(getline(courseFile, line)) {
 		if (line.empty() || line[0] == '#')
 			continue;
-		else if (isdigit(line[0]))
-			courses.reserve(stoi(line));
+		else if (isdigit(line[0])) {
+			courses.reserve(stoi(line) + 1); // +1 for default course
+			courses.push_back(dfltCourse);
+		}
 		else if (line[0] == ':') {
 			course.numHoles = (int)course.holes.size();
 			for (auto& hole : course.holes)
@@ -356,6 +448,7 @@ void State::loadCourses()
 			CourseHole chl;
 			chl.platformsFile = line;
 			chl.holeNumber = (int)course.holes.size() + 1;
+			//par
 			course.holes.push_back(chl);
 		}
 	}
@@ -368,6 +461,35 @@ void State::loadCourse(Course& course)
 	course.reset();
 	if (course.numHoles)
 		loadNextHole();
+}
+
+void State::loadHole (CourseHole& cHole)
+{
+	cHole.strokeCt = 0;
+	flagTxt.setString(tS(cHole.holeNumber));
+	centerOrigin(flagTxt);
+	loadPlatforms(cHole.platformsFile, &cHole);
+	rwin->setView(View(FloatRect(0, 0, cHole.viewSize.x, cHole.viewSize.y)));
+	curPlatFile = cHole.platformsFile;
+	moveDehToBall();
+	deh.setScale(hole.gP().x > ball.gP().x ? 1 : -1, 1);
+	angle = 270;
+	timedMgr->gSet("canShoot");
+	teeingOff = true;
+	ballActive = true;
+	
+	// ///// FOR DBG, set sky gray bc ball activity will set
+	// sky different colors; else random choice till courses
+	// dictate their own sky color
+	vector<Color> skyColors {
+		RAINYGRAY
+#ifndef DBG
+		, DKAZURE, SKYBLUE
+		, DRABCYAN, CORNFLOWER
+		, BUTTERSKY, PEACH
+#endif
+	};
+	app->setRedrawColor(randElemVal(skyColors));
 }
 
 void State::loadNextHole()
@@ -384,34 +506,11 @@ void State::loadNextHole()
 		CourseHole& cHole = curCourse->holes[curCourse->nextHole - 1];
 		curCourse->curHole = &cHole;
 		++curCourse->nextHole;
-		cHole.strokeCt = 0;
-		flagTxt.setString(tS(cHole.holeNumber));
-		centerOrigin(flagTxt);
-		loadPlatforms(cHole.platformsFile);
-		curPlatFile = cHole.platformsFile;
-		deh.sP(ball.gP());
-		deh.setScale(hole.gP().x > ball.gP().x ? 1 : -1, 1);
-		angle = toPolar(hole.gP() - ball.gP()).y;
-		timedMgr->gSet("canShoot");
-		teeingOff = true;
-		ballActive = true;
-		
-		// ///// FOR DBG, set sky gray bc ball activity will set
-		// sky different colors; else random choice till courses
-		// dictate their own sky color
-		vector<Color> skyColors {
-			RAINYGRAY
-#ifndef DBG
-			, DKAZURE, SKYBLUE
-			, DRABCYAN, CORNFLOWER
-			, BUTTERSKY, PEACH
-#endif
-		};
-		app->setRedrawColor(randElemVal(skyColors));
+		loadHole(cHole);
 	}
 }
 
-void State::loadPlatforms (string fname)
+void State::loadPlatforms (string fname, CourseHole* chl)
 {
 	platforms.clear();
 	ifstream plats {resourcePath() / "levels" / (fname + ".txt")};
@@ -447,6 +546,14 @@ void State::loadPlatforms (string fname)
 	while (getline(plats, line)) {
 		if (line.empty() || line[0] == '#')
 			continue;
+		stringstream ss {line};
+		string tok;
+		if (line[0] == '{') {
+			if (chl) {
+				ss >> tok >> chl->viewSize.x >> chl->viewSize.y;
+			}
+			continue;
+		}
 		/* Colon in config file signals end of a platform.
 		 * Make sure to connect the last vertex to the first vertex,
 		 * then create a sprite from the ground segment data, and empty
@@ -454,8 +561,6 @@ void State::loadPlatforms (string fname)
 		 */
 		if (line[0] == ':') {
 			PlatFillInfo pfi;
-			stringstream ss {line};
-			string tok;
 			ss >> tok; // Pass over colon
 			if (ss >> tok) {
 				if (tok == "colordev") {
@@ -500,9 +605,7 @@ void State::loadPlatforms (string fname)
 			/* It's a line of numbers representing the start and end coordinates
 			 * of a single ground segment to be added to current platform
 			 */
-		std::stringstream ss(line);
 		vecF start, end;
-		string tok;
 		bool hasHole = false;
 		bool hasTee = false;
 		string surfaceType;
@@ -544,24 +647,25 @@ void State::loadPlatforms (string fname)
 	if (!hasCachedSprite) {
 		assembleSprite(fname);
 	}
-//	if (txMap.find(fname) == txMap.end())
-		Resources::addTexToMap({fname + ".png", fname});
+//	if (!Resources::texExists(fname))
+		Resources::addTexToMap({(path("levelSprites") / (fname + ".png")).string(), fname});
 	curHoleSprite.setTexture(gTexture(fname));
 }
 
 void State::menuDraw ()
 {
 	rwin->draw(bkgdSpr);
-	rwin->draw(menuTitle);
-	rwin->draw(signatureTxt);
 	for (auto& cb : courseButtons)
 		rwin->draw(cb);
+	rwin->draw(menuTitle);
+	rwin->draw(signatureTxt);
+	rwin->draw(menuInstr);
 }
 
 void State::menuClick (int x, int y)
 {
 	for (auto& btn : courseButtons) {
-		if (btn.gGB().contains(x, y)) {
+		if (btn.bkgdSky.gGB().contains(x, y)) {
 			mode = play;
 			loadCourse(*(btn.course));
 		}
@@ -570,13 +674,29 @@ void State::menuClick (int x, int y)
 
 void State::switchToPlay ()
 {	
-	string arg = filenameTbox.boxTxt.getString();
-	if (arg.empty())
-		arg = "platforms";
-	loadPlatforms(arg);
 	mode = play;
-	ballActive = false;
-	endRoll();
+	string arg = filenameTbox.boxTxt.getString();
+	if (arg.empty()) {
+		arg = "platforms";
+		ofstream os {resourcePath() / "levels" / (arg + ".txt"), std::ios_base::app};
+		os.close();
+	}
+	if (holeWhenEnteringMode
+		&& arg == holeWhenEnteringMode->platformsFile) {
+		loadHole(*holeWhenEnteringMode);
+	}
+	// Editor doesn't have course recognition yet; put a new hole
+	// in the default course
+	else {
+		CourseHole chl;
+		chl.platformsFile = arg;
+		chl.par = 4;
+		chl.holeNumber = int(courses[0].holes.size() + 1);
+		courses[0].holes.push_back(chl);
+		loadHole(courses[0].holes.back());
+		curCourse = &courses[0];
+		curCourse->curHole = &curCourse->holes.back();
+	}
 }
 
 void State::assembleSprite (string fname)
@@ -723,7 +843,7 @@ void State::assembleSprite (string fname)
 		rt.draw(platSpr);
 	}
 	rt.display();
-	rt.getTexture().copyToImage().saveToFile((resourcePath() / "images" / (fname + ".png")).string());
+	rt.getTexture().copyToImage().saveToFile((resourcePath() / "images" / "levelSprites" / (fname + ".png")).string());
 	ofstream ofs { resourcePath() / "levels" / (fname + ".txt"), std::ios_base::app };
 	ofs << "\nSPRITE_CACHED\n";
 	ofs.close();
@@ -733,13 +853,13 @@ void State::playUpdate (const Time& time)
 {
 	// DEBUG CONTROLS
 	ikp(Z) {
-		if (iKP(LShift))
+		if (isShiftPressed())
 			muK = decm(muK, .01);
 		else muK = incm(muK, .01, 5);
 		PAUSE;
 	}
 	ikp(X) {
-		if (iKP(LShift))
+		if (isShiftPressed())
 			muS = decm(muS, .01);
 		else muS = incm(muS, .01, 5);
 		PAUSE;
@@ -753,14 +873,46 @@ void State::playUpdate (const Time& time)
 	
 	
 	bool dbgMove = false;
-	if (iKP(D)) { ball.move(2, 0); dbgMove = true; }
-	if (iKP(A)) { ball.move(-2, 0); dbgMove = true; }
-	if (iKP(W)) { ball.move(0, -2); dbgMove = true; }
-	if (iKP(S)) { ball.move(0, 2); dbgMove = true; }
+	if (isShiftPressed() && iKP(D)) { ball.move(2, 0); dbgMove = true; }
+	if (isShiftPressed() && iKP(A)) { ball.move(-2, 0); dbgMove = true; }
+	if (isShiftPressed() && iKP(W)) { ball.move(0, -2); dbgMove = true; }
+	if (isShiftPressed() && iKP(S)) { ball.move(0, 2); dbgMove = true; }
 	if (dbgMove) {
 		rolling = false;
 		gSeg = nullptr;
 	}
+	
+	View vw = rwin->getView();
+	auto oldPos = vw.getCenter();
+	bool changedView = false;
+	if (iKP(Left)) {
+		vw.move(-5, 0);
+		changedView = true;
+		if (vw.getCenter().x < scrcx)
+			vw.setCenter(scrcx, vw.getCenter().y);
+	}
+	if (iKP(Up)) {
+		vw.move(0, -5);
+		changedView = true;
+		if (vw.getCenter().y < scrcy)
+			vw.setCenter(vw.getCenter().x, scrcy);
+	}
+	if (iKP(Right)) {
+		vw.move(5, 0);
+		changedView = true;
+	}
+	if (iKP(Down)) {
+		vw.move(0, 5);
+		changedView = true;
+	}
+	if (changedView) {
+		auto dif = vw.getCenter() - oldPos;
+		statsTxt.move(dif);
+		rwin->setView(vw);
+	}
+	
+	
+	
 	//////////////
 	// DEBUG MOUSE AIM: comment out the release aiming
 	//	vecf dif = vecf(mx, my) - ball.gP();
@@ -768,12 +920,12 @@ void State::playUpdate (const Time& time)
 	/////////////////
 	
 	/* Keyboard control of club aim */
-	if ( iKP(Right) && !iKP(Left)) {
+	if ( iKP(Period) && !iKP(Comma)) {
 		angle += angleRate;
 		if (angle >= 360)
 			angle  -= 360;
 	}
-	if ( iKP(Left) && !iKP(Right)) {
+	if ( iKP(Comma) && !iKP(Period)) {
 		angle -= angleRate;
 		if (angle < 0)
 			angle += 360;
@@ -917,7 +1069,7 @@ void State::updateGuide()
 		guideline.appendPtC(ogn + pVec(i + 2, angle), c);
 	}
 	
-	deh.sP(ball.gP() + vecf(-3, 0));
+	moveDehToBall();
 	if (angleIsOrFallsBetween(angle, 90, 270))
 		deh.setScale(-1, 1);
 	else deh.setScale(1, 1);
@@ -1093,13 +1245,15 @@ void State::fly(float pct)
 
 	// KEEPING BALL IN SCREEN: DIFFERENT APPROACH ///////////
 	{
-		if (newPos.x < 2 || newPos.x > scrw - 2) {
-			ball.sP(newPos.x < 0 ? 2 : scrw - 2, ball.gP().y);
+		auto rightBound = curCourse->curHole->viewSize.x;
+		auto bottomBound = curCourse->curHole->viewSize.y;
+		if (newPos.x < 2 || newPos.x > rightBound - 2) {
+			ball.sP(newPos.x < 0 ? 2 : rightBound - 2, ball.gP().y);
 			ball.setDx(ball.dx() * -1);
 //			ball.setMag(ball.mag() * 1.3);
 		}
-		if (newPos.y > scrh) {
-			ball.sP(ball.gP().x, scrh);
+		if (newPos.y > bottomBound) {
+			ball.sP(ball.gP().x, bottomBound);
 			zeroOutVelocity();
 		}
 	}
@@ -1109,14 +1263,14 @@ void State::fly(float pct)
 	CollisionInfo ci;
 	
 	{ // temp block because kids wanted deh-deh to say "ow" if ball hits him
-		auto rect = deh.gGB();
-		rect.height -= rect.height / 2 + 4;
-		rect.left += 8;
-		rect.width -= 16;
-		if (rect.contains(ball.getPosition().x, ball.getPosition().y)) {
-			gSound("ow").play();
-			timedMgr->addEvent(2, [&](){ gSound("crying").play(); });
-		}
+//		auto rect = deh.gGB();
+//		rect.height -= rect.height / 2 + 4;
+//		rect.left += 8;
+//		rect.width -= 16;
+//		if (rect.contains(ball.getPosition().x, ball.getPosition().y)) {
+//			gSound("ow").play();
+//			timedMgr->addEventIf("ow", 2, [&](){ gSound("crying").play(); });
+//		}
 	}
 	
 	/* Collision check with platforms */
@@ -1343,16 +1497,16 @@ void State::fly(float pct)
 //		}
 	}
 	
-	// DEBUG //////////
+	/* Draw the ball's flight trajectory */
 	vecf np = ci.seg ? ci.collisionPt : newPos;
 	vecf pv = toPolar(np - oldPos);
-	RectangleShape r;
-	r.setSize({pv.x, 2});
-	r.setRotation(pv.y);
-	r.setPosition(oldPos);
-	r.setFillColor(PURPLE);
-	drtDraw(r);
-	// //////////
+	RectangleShape traj;
+	traj.setSize({pv.x, 2});
+	traj.setRotation(pv.y);
+	traj.setPosition(oldPos);
+	traj.setFillColor(PURPLE);
+	trajecRt.draw(traj);
+	trajecRt.display();
 } // end fly()
 
 void State::roll(float pct, GroundSegment* segToIgnore)
@@ -1825,9 +1979,12 @@ void State::roll(float pct, GroundSegment* segToIgnore)
 	}
 
 	  //HANDLE EDGES OF SCREEN //////////////
-	{	  auto newPos = ball.gP();
-		if (newPos.x < 2 || newPos.x > scrw - 2) {
-			ball.sP(newPos.x < 0 ? 1.5 : scrw - 2.5, ball.gP().y);
+	{
+		auto rightBound = curCourse->curHole->viewSize.x;
+		auto bottomBound = curCourse->curHole->viewSize.y;
+		auto newPos = ball.gP();
+		if (newPos.x < 2 || newPos.x > rightBound - 2) {
+			ball.sP(newPos.x < 0 ? 1.5 : rightBound - 2.5, ball.gP().y);
 			ball.setDx(ball.dx() * -1);
 //			ball.setMag(ball.mag() * 1.3);
 			
@@ -1839,8 +1996,8 @@ void State::roll(float pct, GroundSegment* segToIgnore)
 //				ball.setDy(ball.dy() * 1.2);
 //			}
 		}
-		if (newPos.y > scrh) {
-			ball.sP(ball.gP().x, scrh - 1);
+		if (newPos.y > bottomBound) {
+			ball.sP(ball.gP().x, bottomBound - 1);
 			zeroOutVelocity();
 		}
 	}
@@ -1874,7 +2031,8 @@ void State::startNewShotTimer ()
 	if (!timedMgr->gOn("canShoot"))
 		timedMgr->addEventIf("setCanShoot", 1.2, [&]() {
 			timedMgr->gSet("canShoot");
-			drtDraw(deh);
+			trajecRt.draw(deh);
+			trajecRt.display();
 		});
 }
 
@@ -1924,15 +2082,15 @@ vector<pair<string, string>> State::surfaceTypeList
 map<string, SurfacePhysics> State::physicsMap
 {
 	{ "grass", {"grass", .1, .1, .45, 20}}
-	, { "puttgrass", {"puttgrass", .06, .06, .38, true}}
+	, { "puttgrass", {"puttgrass", .06, .06, .38, 20}}
 	, { "rough", {"rough", .3, .4, .65, 18}}
 	, { "sand", {"sand", .4, .5, .85, 12}}
 	, { "dirt", {"dirt", .35, .45, .75, 14}}
-	, { "marble", {"marble", .01, .01, .08, true}}
-	, { "metal", {"metal", .012, .012, .1, true}}
-	, { "stones", {"stones", .03, .03, .25, true}}
-	, { "logs", {"logs", .03, .03, .25, 22}}
-	, { "brick", {"brick", .03, .03, .25, true}}
+	, { "marble", {"marble", .01, .01, .13, 23}}
+	, { "metal", {"metal", .012, .012, .18, 22}}
+	, { "stones", {"stones", .03, .03, .25, 21}}
+	, { "logs", {"logs", .03, .03, .27, 21}}
+	, { "brick", {"brick", .03, .03, .25, 21}}
 };
 
 

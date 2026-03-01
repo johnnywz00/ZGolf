@@ -44,11 +44,14 @@ void State::switchToDesign ()
 	ball.sP(-100, -100);
 	hole.sP(-100, -100);
 	
+	holeWhenEnteringMode = curCourse->curHole;
 	loadPlatformData(curPlatFile);
 	
 	curSurfType = "grass";
 	toolWin.toolButtons["grass"].isSelected = true;
 	activateSelectButton();
+	app->setRedrawColor(Color(254, 252, 250));
+	restoreView();
 }
 
 void State::loadToolbarButtons()
@@ -204,8 +207,8 @@ void State::designKeyPress (Keyboard::Key k)
 			}
 			break;
 			
-		case Keyboard::Comma:
-			
+		case Keyboard::Slash:
+			showInstr = !showInstr;
 			break;
 			
 		default:
@@ -215,6 +218,11 @@ void State::designKeyPress (Keyboard::Key k)
 
 void State::designClick (int x, int y)
 {
+	if (showInstr) {
+		showInstr = false;
+		return;
+	}
+	
 	bool clickedTool = false;
 	auto clickTool = [&](string str, RectangleShape& but) {
 		curTool = str;
@@ -473,7 +481,12 @@ void State::designDraw ()
 	
 	w->draw(filenameTbox);
 	w->draw(fillInfoTbox);
+	w->draw(instrLabel);
 	w->draw(toolWin);
+	if (showInstr) {
+		w->draw(instrRect);
+		w->draw(instrTxt);
+	}
 	
 //	w->draw(mouseTxt);
 	w->draw(statsTxt);
@@ -649,8 +662,8 @@ bool State::finishGround (EditorPlatform* plat, bool makeNew)
 
 void State::clearMap ()
 {
-	std::fstream fs{resourcePath() / "levels" / "platforms.txt", std::ios_base::out|std::ios_base::trunc};
-	fs.close();
+//	std::fstream fs{resourcePath() / "levels" / curPlatFile, std::ios_base::out | std::ios_base::trunc};
+//	fs.close();
 	curPlatforms.clear();
 	gClicked = nullptr;
 	gHighlighted = nullptr;
@@ -714,8 +727,12 @@ void State::setCurPlat (EditorPlatform* ep)
 
 void State::saveHole ()
 {
-	string fname = (resourcePath() / "levels" / string(filenameTbox.boxTxt.getString() + ".txt")).string();
+	string tboxtxt = string(filenameTbox.boxTxt.getString());
+	if (tboxtxt.empty())
+		tboxtxt = "newLevel" + tS(rand());
+	string fname = (resourcePath() / "levels" / (tboxtxt + ".txt")).string();
 	ofstream fs {fname, std::ios_base::trunc};
+	fs << "{ " << int(scrw) << ' ' << int(scrh) << endl;	// log the View size
 	for (auto& ep : curPlatforms) {
 		if (!finishGround(&ep, false))
 			continue;
@@ -755,4 +772,5 @@ void State::saveHole ()
 		fs << endl;
 	}
 	fs.close();
+	gSound("save").play();
 }

@@ -12,15 +12,16 @@ CourseButton::CourseButton (Course& c, const vecf& pos)
 {
 	course = &c;
 	
-	bkgdSky.setSize({thumbWid, thumbHt});
-	bkgdSky.setFillColor(SKYBLUE);
-	::centerOrigin(bkgdSky);
-	bkgdSky.setPosition(pos);
-	
 	setTexture(gTexture(c.holes[0].platformsFile));
-	centerOrigin();
-	setScale(thumbWid / gLB().width, thumbHt / gLB().height);
+	setOrigin(gLB().width / 2, gLB().height);
+	auto factor = thumbWid / gLB().width;
+	setScale(factor, factor);
 	setPosition(pos);
+	
+	bkgdSky.setSize({gGB().width, gGB().height});
+	bkgdSky.setFillColor(SKYBLUE);
+	bkgdSky.setOrigin(gGB().width / 2, gGB().height);
+	bkgdSky.setPosition(pos);
 	
 	label.setFont(gFont("menuTitle"));
 	label.setCharacterSize(32);
@@ -29,5 +30,5 @@ CourseButton::CourseButton (Course& c, const vecf& pos)
 	label.setFillColor(BUTTERSKY);
 	label.setString(c.courseName);
 	::centerOrigin(label);
-	label.setPosition(pos + pVec(thumbHt / 2 + 30, 90));
+	label.setPosition(pos + pVec(30, 90));
 }
