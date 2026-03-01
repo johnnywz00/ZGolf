@@ -1,9 +1,0 @@
-{ 1728 1117
-H 1062 429 846 425 brick
-T 846 425 617 418 brick
-617 418 712 575 brick
-712 575 964 584 brick
-964 584 1062 429 brick
-: imagepixs brickfill
-
-SPRITE_CACHED
