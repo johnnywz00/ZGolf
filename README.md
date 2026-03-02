@@ -5,7 +5,8 @@
 <img width="1728" height="1117" alt="Screenshot 2026-02-12 at 4 58 06 PM" src="https://github.com/user-attachments/assets/23c4faed-b039-4cfe-b22a-12f822cf847e" />
 
 ### NOTICE: 
-This game runs seamlessly on my Mac and Windows setups, both of which have pretty decent hardware by 2025 standards. However, on my small Linux Chromebook, the game was unusably slow. If you try out the game, prefer the strongest hardware you have access to.
+Speedwise, this game runs seamlessly on my Mac and Windows setups, both of which have pretty decent hardware by 2025 standards. However, on my small Linux Chromebook, the game was unusably slow. If you try out the game, prefer the strongest hardware you have access to.
+WINDOWS USERS: I developed this game on a Mac, and some unexpected quirks appear only when running the Windows version: the ball may occasionally be transported to a random spot at tee-off, and using N for "load next hole" sometimes causes crashes or odd behavior.
 
 ### ABOUT THE PROJECT
 ZGolf is a project that was a kind of natural outcome of carrying previous experiments to the next level. It integrates the projectile physics of Parasheep, the sphere collisions of LetterBalls, and the sprite collision checking of Hopscotch, and adds new levels of sophistication to the whole. Even so, the first incarnation of this game came relatively early in my programming career. Years later, the physics got a major overhaul, and the editor gained a lot more functionality. No engines or game libraries are used beyond SFML, which handles fundamentals like drawing to screen, playing sound, and getting input events. 
