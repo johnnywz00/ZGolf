@@ -8,8 +8,8 @@
 
 #include "zgolf.hpp"
 
-#define vwWid State::viewWid()
-#define vwHt State::viewHt()
+#define vwWid State::getSelf()->viewWid()
+#define vwHt State::getSelf()->viewHt()
 
 pair<Vert*, Vert*> EditorPlatform::recomputeSpline ()
 {
