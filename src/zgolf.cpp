@@ -476,6 +476,13 @@ void State::loadCourse(Course& course)
 
 void State::loadHole (CourseHole& cHole)
 {
+	zeroOutVelocity();
+	angle = 270;
+	timedMgr->gSet("canShoot");
+	resetAnim();
+	teeingOff = true;
+	putting = false;
+	ballActive = true;
 	cHole.strokeCt = 0;
 	flagTxt.setString(tS(cHole.holeNumber));
 	centerOrigin(flagTxt);
@@ -489,11 +496,6 @@ void State::loadHole (CourseHole& cHole)
 	curPlatFile = cHole.platformsFile;
 	moveDehToBall();
 	deh.setScale(hole.gP().x > ball.gP().x ? 1 : -1, 1);
-	angle = 270;
-	timedMgr->gSet("canShoot");
-	resetAnim();
-	teeingOff = true;
-	ballActive = true;
 	
 	// ///// FOR DBG, set sky gray bc ball activity will set
 	// sky different colors; else random choice till courses
@@ -623,7 +625,7 @@ void State::loadPlatforms (string fname, CourseHole* chl)
 			/* It's a line of numbers representing the start and end coordinates
 			 * of a single ground segment to be added to current platform
 			 */
-		vecF start, end;
+		vecF start {0, 0}, end {0, 0};
 		bool hasHole = false;
 		bool hasTee = false;
 		string surfaceType;

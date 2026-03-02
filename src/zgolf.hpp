@@ -1,5 +1,8 @@
 
 /*
+ -Windows version seems to have some uninitialized starting positions or frozen aim guideline (usu. taking first shot "cures" it)
+ -Windows: ball disappeared off left side of screen (parfour3, right by tee)
+ -hitting loadNextHole (Windows only?) when ball in motion, caused deh to start next level in odd place (and then ball disappeared after first shot)
  -ball fell through ground on chiz1 after two (or first) consecutive minimal swings (tiny rolls); not checking gSeg because assuming it will fly, and a future path will cross a segment line? (doesn't happen for minimal putt)
  -why are level files ending up with multiple T lines (parfour3)
  -why is gentle curving putt terrain acting like invisible (parfour3 at top)
