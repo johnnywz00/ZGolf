@@ -242,10 +242,8 @@ void State::onKeyPress (Keyboard::Key k)
 		case Keyboard::Escape:
 			if (mode == menu)
 				app->close();
-			else {
-				mode = menu;
-//				restoreView();
-			}
+			else
+				returnToMenu();
 			break;
 			
 		case Keyboard::M:
@@ -275,9 +273,9 @@ void State::onKeyPress (Keyboard::Key k)
 					break;
 					
 				case Keyboard::Period:
-					testRetro();
-					//					makeBlotchTx();
-					//					checkForShortSegs(15);
+//					testRetro();
+//					makeBlotchTx();
+//					checkForShortSegs(15);
 					break;
 					
 				default:
@@ -493,6 +491,7 @@ void State::loadHole (CourseHole& cHole)
 	deh.setScale(hole.gP().x > ball.gP().x ? 1 : -1, 1);
 	angle = 270;
 	timedMgr->gSet("canShoot");
+	resetAnim();
 	teeingOff = true;
 	ballActive = true;
 	
@@ -695,6 +694,13 @@ void State::menuClick (int x, int y)
 	}
 }
 
+void State::returnToMenu ()
+{
+	mode = menu;
+	timedMgr->clearEvents();
+//	restoreView();	// for now running whole game as 1728x1117 View
+}
+
 void State::switchToPlay ()
 {	
 	mode = play;
@@ -769,7 +775,7 @@ void State::assembleSprite (string fname)
 //				errLog << "Color filling:" << endl;
 				auto cdi = std::get<PlatFillInfo::ColorDevInfo>(p.fillInfo.arg);
 				zimg.fillInWithColor(startPt, cdi.c, cdi.dev);
-#if defined(_WIN32) || defined(_WIN64)
+#ifndef DEBUG // defined(_WIN32) || defined(_WIN64)
 			// Windows is crashing on the blur
 #else
 				zimg.blur(cdi.blurRepetitions);
@@ -1120,6 +1126,9 @@ void State::updateGuide ()
 
 void State::handleSwing ()
 {
+	/* Make power bar start descending once it hits max
+	 * so that timing is needed to get full power
+	 */
 	if (!pullingBack) {
 		pullingBack = true;
 		powerRising = true;
@@ -1201,14 +1210,14 @@ void State::updatePowerBar(float pct)
 	}
 }
 
-void State::startDownswing ()
+void State::startDownswing () //@kludgeAnim
 {
 	if (putting && curFrameNum == 1
 		|| curFrameNum == 2) {
 		timedMgr->addEvent(2, [&]() {
 			setDehFrame(0);
 			putting = false;
-		});
+		}, false, "followThrough");
 		//		putting = false;
 		/* Causing putt animation to follow through as far as iron swing: are
 		 * copies of Fuses or FusePtrs being made and running directly after this */
@@ -1217,7 +1226,7 @@ void State::startDownswing ()
 	setDehFrame(curFrameNum + 1);
 	if (curFrameNum == 0)
 		launch();
-	timedMgr->addEvent(putting ? .2 : .1, [&]() { startDownswing(); });
+	timedMgr->addEvent(putting ? .2 : .1, [&]() { startDownswing(); }, false, "downswing");
 }
 
 void State::setDehFrame (int orderNum) //@kludgeAnim
@@ -1227,6 +1236,14 @@ void State::setDehFrame (int orderNum) //@kludgeAnim
 										 )];
 	deh.setTextureRect(frame.subRect);
 	curFrameNum = frame.orderNum;
+}
+
+void State::resetAnim ()
+{
+	setDehFrame(0);
+	putting = false;
+	timedMgr->removeByTag("followThrough");
+	timedMgr->removeByTag("downswing");
 }
 
 void State::launch ()
@@ -2076,6 +2093,7 @@ void State::startNewShotTimer ()
 			timedMgr->gSet("canShoot");
 			trajecRt.draw(deh);
 			trajecRt.display();
+			resetAnim();
 		});
 }
 

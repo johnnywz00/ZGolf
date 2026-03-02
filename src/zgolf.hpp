@@ -1,8 +1,10 @@
 
 /*
+ -ball fell through ground on chiz1 after two (or first) consecutive minimal swings (tiny rolls); not checking gSeg because assuming it will fly, and a future path will cross a segment line? (doesn't happen for minimal putt)
+ -why are level files ending up with multiple T lines (parfour3)
  -why is gentle curving putt terrain acting like invisible (parfour3 at top)
- -shouldn't have followthrough animation if short shot and deh moved to new pos
  -deh moves to ball when it zeroes out going up a slope and coming back down, also just brushing a ceiling at the top of an arc
+ -some crotch rebounds are definitely not right
 
  -FRICTION CREEP: add an angle threshold to each surface type where the ball won't move if it zeroed out velocity on shallow enough slant  (or,  fixing centrifugal may fix this, pretty certain FrictionSandbox had no creep)
  -Disregard all centrifugal calculations unless xlatdir exceeds speed threshold?
@@ -214,6 +216,8 @@ private:
 
 	
 /* Play mode methods */
+	void returnToMenu ();
+	
 	void switchToPlay ();
 	
 	void assembleSprite (string);
@@ -238,6 +242,8 @@ private:
 	void startDownswing (); //@kludgeAnim
 	
 	void setDehFrame (int); //@kludgeAnim
+	
+	void resetAnim (); //@kludgeAnim
 	
 	void launch ();
 	
@@ -405,11 +411,11 @@ private:
 	
 	void testRetro()
 	{
-		Texture tx;
-		tx.loadFromFile((resourcePath() / "images" / "china.png").string());
-		ZImage zim {tx.copyToImage()};
-		zim.convertToRetroColor();
-		zim.saveToFile((resourcePath() / "images" / "retroExc.png").string());
+//		Texture tx;
+//		tx.loadFromFile((resourcePath() / "images" / "china.png").string());
+//		ZImage zim {tx.copyToImage()};
+//		zim.convertToRetroColor();
+//		zim.saveToFile((resourcePath() / "images" / "retroExc.png").string());
 	}
 	
 	void makeBlotchTx()
