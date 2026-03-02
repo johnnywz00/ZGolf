@@ -223,6 +223,7 @@ void State::onMouseDown (int x, int y)
 			ballActive = true;
 			rolling = false;
 			gSeg = nullptr;
+			ball.setVelocity(0, 0);
 			ball.sP(x, y);
 		}
 	}
@@ -476,13 +477,6 @@ void State::loadCourse(Course& course)
 
 void State::loadHole (CourseHole& cHole)
 {
-	zeroOutVelocity();
-	angle = 270;
-	timedMgr->gSet("canShoot");
-	resetAnim();
-	teeingOff = true;
-	putting = false;
-	ballActive = true;
 	cHole.strokeCt = 0;
 	flagTxt.setString(tS(cHole.holeNumber));
 	centerOrigin(flagTxt);
@@ -494,8 +488,15 @@ void State::loadHole (CourseHole& cHole)
 	trajecTx.loadFromImage(trajecImg);
 	trajecSpr.setTexture(trajecTx);
 	curPlatFile = cHole.platformsFile;
+	ball.setVelocity(0, 0);
 	moveDehToBall();
 	deh.setScale(hole.gP().x > ball.gP().x ? 1 : -1, 1);
+	angle = 270;
+	timedMgr->gSet("canShoot");
+	resetAnim();
+	teeingOff = true;
+	putting = false;
+	ballActive = true;
 	
 	// ///// FOR DBG, set sky gray bc ball activity will set
 	// sky different colors; else random choice till courses
@@ -625,7 +626,7 @@ void State::loadPlatforms (string fname, CourseHole* chl)
 			/* It's a line of numbers representing the start and end coordinates
 			 * of a single ground segment to be added to current platform
 			 */
-		vecF start {0, 0}, end {0, 0};
+		vecF start, end;
 		bool hasHole = false;
 		bool hasTee = false;
 		string surfaceType;
@@ -657,7 +658,7 @@ void State::loadPlatforms (string fname, CourseHole* chl)
 			flagTxt.sP(g.mid + vecf(0, -51));
 		}
 		if (hasTee) {
-			ball.sP(g.mid + pVec(ballRadius + 1, g.normal));
+			ball.sP(g.mid + pVec(ballRadius + 2, g.normal));
 		}
 		p.segs.push_back(g);
 		p.va.append(Vertex(start, p.fillColor));
@@ -2076,7 +2077,7 @@ void State::endRoll()
 void State::zeroOutVelocity ()
 {
 	ball.setVelocity(0,0);
-	if (!teeingOff)
+	if (!teeingOff && gSeg && gSeg->facesUp)
 		startNewShotTimer();
 }
 
