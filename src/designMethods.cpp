@@ -242,7 +242,7 @@ void State::designClick (int x, int y)
 		if (tb.second.gGB().contains(x, y)) {
 			if (tb.second.isFill) {
 				curPlat->fillTboxStr = tb.second.key;
-				fillInfoTbox.boxTxt.setString(tb.second.key);
+				fillInfoTbox.setText(tb.second.key);
 			}
 			else {
 				toolWin.toolButtons[curSurfType].isSelected = false;
@@ -723,7 +723,7 @@ void State::deactivateCurTbox ()
 void State::setCurPlat (EditorPlatform* ep)
 {
 	curPlat = ep;
-	fillInfoTbox.boxTxt.setString(ep->fillTboxStr);
+	fillInfoTbox.setText(ep->fillTboxStr);
 }
 
 void State::saveHole ()

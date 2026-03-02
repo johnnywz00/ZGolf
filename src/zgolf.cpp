@@ -51,6 +51,11 @@ void State::onCreate ()
 	menuInstr.setPosition(scrcx, signatureTxt.gP().y + 60);
 	menuInstr.setFillColor(Color(c.r, c.g, c.b, 160));
 	
+	menuInstrBackdrop.setSize({menuInstr.gGB().width + 20, menuInstr.gGB().height + 20});
+	menuInstrBackdrop.setOrigin(menuInstrBackdrop.gGB().width / 2, 0);
+	menuInstrBackdrop.setPosition(menuInstr.gP() + vecF(0, -7));
+	menuInstrBackdrop.setFillColor(withAlpha(Color::Black, 180));
+	
 	float buttonX = scrcx - 500;
 	forNum(3) {
 		string fname = courses[i + 1].holes[0].platformsFile;
@@ -673,6 +678,7 @@ void State::menuDraw ()
 	rwin->draw(bkgdSpr);
 	for (auto& cb : courseButtons)
 		rwin->draw(cb);
+	rwin->draw(menuInstrBackdrop);
 	rwin->draw(menuTitle);
 	rwin->draw(signatureTxt);
 	rwin->draw(menuInstr);

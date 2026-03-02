@@ -305,6 +305,7 @@ private:
 
 /* Menu members */
 	Sprite					bkgdSpr;
+	RectangleShape			menuInstrBackdrop;
 	vector<CourseButton>	courseButtons;
 	Text					menuTitle
 							, signatureTxt
