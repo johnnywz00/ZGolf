@@ -51,7 +51,7 @@ void State::switchToDesign ()
 	toolWin.toolButtons["grass"].isSelected = true;
 	activateSelectButton();
 	app->setRedrawColor(Color(254, 252, 250));
-	restoreView();
+//	restoreView();
 }
 
 void State::loadToolbarButtons()
@@ -733,7 +733,7 @@ void State::saveHole ()
 		tboxtxt = "newLevel" + tS(rand());
 	string fname = (resourcePath() / "levels" / (tboxtxt + ".txt")).string();
 	ofstream fs {fname, std::ios_base::trunc};
-	fs << "{ " << int(scrw) << ' ' << int(scrh) << endl;	// log the View size
+//	fs << "{ " << int(scrw) << ' ' << int(scrh) << endl;	// log the View size
 	for (auto& ep : curPlatforms) {
 		if (!finishGround(&ep, false))
 			continue;

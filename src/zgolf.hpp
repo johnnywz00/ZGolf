@@ -160,9 +160,15 @@ public:
 	
 	void draw () ;
 	
+	static inline float viewWid () { return vw.getSize().x; }
+	static inline float viewHt () { return vw.getSize().x; }
+	static inline float viewCX () { return vw.getSize().x / 2; }
+	static inline float viewCY () { return vw.getSize().y / 2; }
+	
 	RenderWindow*   	rwin;
 	FullscreenOnlyApp*	app;
 	TimedEventManager*	timedMgr;
+	static inline View	vw {};
 	vecI				mouseVec
 						, oldMouse
 	;

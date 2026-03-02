@@ -16,27 +16,28 @@ State* State::instance_ = nullptr;
 void State::onCreate ()
 {
 	instance_ = this;
-	
+	vw = View(FloatRect(0, 0, 1728, 1117)); // @1728
+	rwin->setView(vw);
 	loadCourses();
 
 	/* Menu setup */
 	bkgdSpr.setTexture(gTexture("bkgd"));
 	auto sz = bkgdSpr.getTexture()->getSize();
-	bkgdSpr.setScale(scrw / sz.x, scrh / sz.y);
+	bkgdSpr.setScale(viewWid() / sz.x, viewHt() / sz.y);
 	
 	menuTitle = Text("ZGolf", gFont("menuTitle"), 230);
 	menuTitle.setOutlineThickness(10);
 	menuTitle.setOutlineColor(DKORANGE);
 	menuTitle.setFillColor(ORANGE75);
 	centerOrigin(menuTitle);
-	menuTitle.setPosition(scrcx, 200);
+	menuTitle.setPosition(viewCX(), 200);
 	
 	signatureTxt = Text(
 		"John Ziegler, 2021-2026    johnnywz00@yahoo.com"
 						, gFont("toolButton"), 20);
 	Color c = ORANGE;
 	centerOrigin(signatureTxt);
-	signatureTxt.setPosition(scrcx, menuTitle.gP().y + 163);
+	signatureTxt.setPosition(viewCX(), menuTitle.gP().y + 163);
 	signatureTxt.setFillColor(Color(c.r, c.g, c.b, 160));
 	
 	menuInstr = Text(
@@ -48,7 +49,7 @@ void State::onCreate ()
 					 "M to enter level creator mode"
 					 , gFont("toolButton"), 20);
 	menuInstr.setOrigin(menuInstr.gGB().width / 2, 0);
-	menuInstr.setPosition(scrcx, signatureTxt.gP().y + 60);
+	menuInstr.setPosition(viewCX(), signatureTxt.gP().y + 60);
 	menuInstr.setFillColor(Color(c.r, c.g, c.b, 160));
 	
 	menuInstrBackdrop.setSize({menuInstr.gGB().width + 20, menuInstr.gGB().height + 20});
@@ -56,11 +57,11 @@ void State::onCreate ()
 	menuInstrBackdrop.setPosition(menuInstr.gP() + vecF(0, -7));
 	menuInstrBackdrop.setFillColor(withAlpha(Color::Black, 180));
 	
-	float buttonX = scrcx - 500;
+	float buttonX = viewCX() - 500;
 	forNum(3) {
 		string fname = courses[i + 1].holes[0].platformsFile;
 		Resources::addTexToMap(make_pair((path("levelSprites") / (fname + ".png")).string(), fname));
-		courseButtons.emplace_back(courses[i + 1], vecf(buttonX, scrh - 100)); // i+1 bc dflt course is 0
+		courseButtons.emplace_back(courses[i + 1], vecf(buttonX, viewHt() - 100)); // i+1 bc dflt course is 0
 		buttonX += 500;
 	}
 	// end menu
@@ -119,23 +120,23 @@ void State::onCreate ()
 					gFont("instr"), 18
 					);
 	centerOrigin(instrTxt);
-	instrTxt.setPosition(scrcx, scrcy);
+	instrTxt.setPosition(viewCX(), viewCY());
 	instrTxt.setFillColor(CHARCOAL);
 	auto ht = instrTxt.gGB().height;
-	if (ht > scrh - 10) {
-		auto factor = scrh / ht;
+	if (ht > viewHt() - 10) {
+		auto factor = viewHt() / ht;
 		instrTxt.setScale(factor, factor);
 	}
 	instrRect.setSize({instrTxt.gLB().width + 20, instrTxt.gLB().height + 20});
 	centerOrigin(instrRect);
-	instrRect.setPosition(scrcx, scrcy);
+	instrRect.setPosition(viewCX(), viewCY());
 	instrRect.setFillColor(withAlpha(ORANGE75, 140));
 	instrRect.setOutlineThickness(2);
 	instrRect.setOutlineColor(ORANGE75);
 	
 	instrLabel = Text("Press ? key for instructions", gFont("instr"), 18);
 	instrLabel.setFillColor(DKORANGE75);
-	instrLabel.setPosition(scrw - 510, 23);
+	instrLabel.setPosition(viewWid() - 510, 23);
 	
 	statsTxt = Text("", gFont("stats"), 20);
 	statsTxt.setPosition(10, 15);
@@ -163,7 +164,7 @@ void State::onCreate ()
 	
 	forNum(10) {
 		clouds[i].setTexture(gTexture("cloud"));
-		clouds[i].sP(randRange(0, scrw + 400), randRange(0, scrh - 50));
+		clouds[i].sP(randRange(0, viewWid() + 400), randRange(0, viewHt() - 50));
 		float factor = float(randRange(50, 120)) / 100;
 		clouds[i].setScale(factor, factor);
 		cloudVels[i] = float(randRange(5, 30)) / 100;
@@ -172,8 +173,8 @@ void State::onCreate ()
 	}
 
 	curPlatforms.reserve(50);
-	filenameTbox = Textbox(gFont("debug"), {scrw - 228, 25});
-	fillInfoTbox = Textbox(gFont("debug"), {scrw - 228, 70});
+	filenameTbox = Textbox(gFont("debug"), {viewWid() - 228, 25});
+	fillInfoTbox = Textbox(gFont("debug"), {viewWid() - 228, 70});
 	
 	deh.setTexture(gTexture("deh"));
 	loadAnimFrames(); //@kludgeAnim
@@ -187,10 +188,10 @@ void State::onCreate ()
 	floatEps = .001;
 	loadCourse(courses[0]);
 	resetGame();
-	restoreView(); // Loading the default course/hole will have set view to 1728 1117
+//	restoreView(); // Loading the default course/hole will have set view to 1728 1117
 
 // DEBUG ///////////
-	drt.create(scrw, scrh);
+	drt.create(viewWid(), viewHt());
 	VertexArray tempVa {Lines};
 	
 //	for (auto& p : platforms)
@@ -243,7 +244,7 @@ void State::onKeyPress (Keyboard::Key k)
 				app->close();
 			else {
 				mode = menu;
-				restoreView();
+//				restoreView();
 			}
 			break;
 			
@@ -567,9 +568,9 @@ void State::loadPlatforms (string fname, CourseHole* chl)
 		stringstream ss {line};
 		string tok;
 		if (line[0] == '{') {
-			if (chl) {
-				ss >> tok >> chl->viewSize.x >> chl->viewSize.y;
-			}
+//			if (chl) {
+//				ss >> tok >> chl->viewSize.x >> chl->viewSize.y;
+//			}
 			continue;
 		}
 		/* Colon in config file signals end of a platform.
@@ -2081,8 +2082,8 @@ void State::startNewShotTimer ()
 void State::fadeTrajectory ()
 {
 	Image img {trajecRt.getTexture().copyToImage()};
-	forNum(scrh) {
-		forNumJ(scrw) {
+	forNum(viewHt()) {
+		forNumJ(viewWid()) {
 			/* Get pixel from the trajectory rentex */
 			auto pix = img.getPixel(j, i);
 			/* If it's transparent (not drawn to last frame) get the

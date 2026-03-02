@@ -8,6 +8,9 @@
 
 #include "zgolf.hpp"
 
+#define vwWid State::viewWid()
+#define vwHt State::viewHt()
+
 pair<Vert*, Vert*> EditorPlatform::recomputeSpline ()
 {
 	splVa.clear();
@@ -96,22 +99,22 @@ pair<Vert*, Vert*> EditorPlatform::recomputeSpline ()
 		float m1;
 		if (dif1.x == 0) {
 			v.P1C1.append(VXC(c1.x, 0, c));
-			v.P1C1.append(VXC(c1.x, scrh, c));
+			v.P1C1.append(VXC(c1.x, vwHt, c));
 		}
 		else {
 			m1 = dif1.y / dif1.x;
 			v.P1C1.append(VXC(0, c1.y - m1 * c1.x, c));
-			v.P1C1.append(VXC(scrw, m1 * scrw + (c1.y - m1 * c1.x), c));
+			v.P1C1.append(VXC(vwWid, m1 * vwWid + (c1.y - m1 * c1.x), c));
 		}
 		dif1 = pos2 - c2;
 		if (dif1.x == 0) {
 			v.C2P2.append(VXC(c2.x, 0, c));
-			v.C2P2.append(VXC(c2.x, scrh, c));
+			v.C2P2.append(VXC(c2.x, vwHt, c));
 		}
 		else {
 			m1 = dif1.y / dif1.x;
 			v.C2P2.append(VXC(0, c2.y - m1 * c2.x, c));
-			v.C2P2.append(VXC(scrw, m1 * scrw + (c2.y - m1 * c2.x), c));
+			v.C2P2.append(VXC(vwWid, m1 * vwWid + (c2.y - m1 * c2.x), c));
 		}
 	}
 	return updateSegs();
