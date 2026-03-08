@@ -173,9 +173,13 @@ void State::onCreate ()
 	}
 
 	curPlatforms.reserve(50);
-	filenameTbox = Textbox(gFont("debug"), {viewWid() - 228, 25});
-	fillInfoTbox = Textbox(gFont("debug"), {viewWid() - 228, 70});
 	
+	filenameTbox = Textbox(gFont("tbox"), {viewWid() - 228, 25}, 18);
+	filenameTbox.changeOffset(vecF(4, -1));
+
+	fillInfoTbox = Textbox(gFont("tbox"), {viewWid() - 228, 70}, 18);
+	fillInfoTbox.changeOffset(vecF(4, -1));
+
 	deh.setTexture(gTexture("deh"));
 	loadAnimFrames(); //@kludgeAnim
 	setDehFrame(0); //@kludgeAnim
@@ -193,7 +197,7 @@ void State::onCreate ()
 // DEBUG ///////////
 	drt.create(viewWid(), viewHt());
 	VertexArray tempVa {Lines};
-	
+
 //	for (auto& p : platforms)
 //		for (auto& s : p.segs) {
 //						if (!s.next || !s.prev)
@@ -2207,4 +2211,37 @@ void State::dbgSky(Color c)
 #ifdef DBG
 	app->setRedrawColor(c);
 #endif
+}
+
+/* For changing LogicCircuits sprite coloration */
+void State::solidToDev ()
+{
+	strvec files { "and", "nand", "nor", "or", "not", "xor" };
+	for (auto& gate : files) {
+		ZImage zimg;
+		ZImage temp;
+		Color baseColor = Color::Transparent;
+		Color ignore = Color(53, 91, 200);
+		Color ignore2 = Color(0, 151, 235);
+//		Color ignore2 = Color(63, 149, 228);
+		zimg.loadFromFile("/Users/johnwz/Programming/CPP/LogicCircuits/resources/images/" + gate + ".png");
+		temp.create(zimg.getSize().x, zimg.getSize().y, Color::Transparent);
+		zimg.forEachPixel([&](unsigned int x, unsigned int y, Color c) {
+			if (zimg.isBlank(c) || c == ignore || c == ignore2)
+				return;
+			auto hsb = rgbToHsb(c);
+			if (hsb[2] > 30 && hsb[1] > 3) {
+				if (baseColor.a == 0) {
+					baseColor = c;
+				}
+				temp.setPixel(x, y, colorWithRandDeviation(baseColor, 12));
+			}
+		});
+		temp.blur(1);
+		temp.forEachPixel([&](unsigned int x, unsigned int y, Color c) {
+			if (!zimg.isBlank(c))
+				zimg.setPixel(x, y, c);
+		});
+		zimg.saveToFile("/Users/johnwz/Programming/CPP/LogicCircuits/resources/" + gate + ".png");
+	}
 }

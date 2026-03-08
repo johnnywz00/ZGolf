@@ -30,6 +30,7 @@ rough.png	rough	repeat
 
 @fonts
 Monaco.ttf					debug
+"Candara Bold.ttf"			tbox
 YurineOverflow.otf			menuTitle
 RollingNoOne-ExtraBold.otf	flagFont
 RollingNoOne-ExtraBold.otf	toolButton

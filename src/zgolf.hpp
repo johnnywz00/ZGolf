@@ -8,6 +8,8 @@
  -why is gentle curving putt terrain acting like invisible (parfour3 at top)
  -deh moves to ball when it zeroes out going up a slope and coming back down, also just brushing a ceiling at the top of an arc
  -some crotch rebounds are definitely not right
+ -figure out the Fuse issue in startDownswing()
+ -make checkline farther out for hard surfaces?
 
  -FRICTION CREEP: add an angle threshold to each surface type where the ball won't move if it zeroed out velocity on shallow enough slant  (or,  fixing centrifugal may fix this, pretty certain FrictionSandbox had no creep)
  -Disregard all centrifugal calculations unless xlatdir exceeds speed threshold?
@@ -17,7 +19,7 @@
  =============
  -multiple threads for blur(), fillIn (but heard that pixel work isn't good to divide between threads?)
  -do screen edges properly
- -add zoning of ground segments (put all segs into zones, don't analyze per platform) to allow game to run on slow computers? (chromebook)
+ -add zoning of ground segments (put all segs into zones, don't analyze per platform) to allow game to run on slow computers? (chromebook); multithreading?; don't iterate trajecrt unless has opaque pixs? keep floatrect of trajec bounds so whole screen size doesn't have to be iterated for fade? do a timestamp test and if a frame is taking longer than 1/60, turn trajectory (and anything else expendable) off?
  
  -when friction creeping ball (and now deh bc staying aligned with it) sometimes disappear (when tab dropping the ball again, ball is traveling at high rate and the sprite is solid black colored)
  -using club a foot from hole, hitting mostly level, when ball got to hole it fell through ground instead of going in hole
@@ -464,6 +466,8 @@ private:
 		zim.saveToFile((resourcePath() / "images" / "newblotches.png").string());
 	}
 	
+	void solidToDev ();
+
 	void checkForShortSegs(float segLength)
 	{
 		ifstream ifs {resourcePath() / "levels" / "platforms.txt"};
