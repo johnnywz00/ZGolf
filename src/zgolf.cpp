@@ -777,7 +777,7 @@ void State::assembleSprite (string fname)
 //				errLog << "Image filling:" << endl;
 				zimg.fillInFromImage(startPt, (resourcePath() / "images" / (std::get<string>(p.fillInfo.arg) + ".png")).string());
 			}
-			// more types like random sprite sprinkling
+			// future: more types like random sprite sprinkling
 			else { // FillType::colorDev
 //				errLog << "Color filling:" << endl;
 				auto cdi = std::get<PlatFillInfo::ColorDevInfo>(p.fillInfo.arg);
@@ -785,8 +785,9 @@ void State::assembleSprite (string fname)
 #ifndef DEBUG // defined(_WIN32) || defined(_WIN64)
 			// Windows is crashing on the blur
 #else
-				zimg.blur(cdi.blurRepetitions);
+				// MOVING zimg.blur OUT OF CONDITIONAL TO TEST ON WINDOWS
 #endif
+				zimg.blur(cdi.blurRepetitions);
 			}
 //			errLog << "765" << endl;
 			
